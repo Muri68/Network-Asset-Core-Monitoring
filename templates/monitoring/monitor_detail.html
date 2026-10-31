@@ -22,9 +22,9 @@
     </div>
   </div>
   <div class="flex flex-wrap gap-2" x-data>
-    <button class="btn" @click="$store.toast.show('Check queued — prototype only')">{% icon "refresh-cw" %} Check now</button>
+{% if can.edit %}    <button class="btn" @click="$store.toast.show('Check queued — prototype only')">{% icon "refresh-cw" %} Check now</button>
     <button class="btn" @click="$store.toast.show('Monitor paused — prototype only', 'paused')">{% icon "pause" %} Pause</button>
-    <a href="{% url 'ui:monitor_new' %}" class="btn">{% icon "pencil" %} Edit</a>
+    <a href="{% url 'ui:monitor_new' %}" class="btn">{% icon "pencil" %} Edit</a>{% endif %}
   </div>
 </div>
 {% endblock %}

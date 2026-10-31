@@ -4,8 +4,8 @@
 {% block page_title %}Network overview{% endblock %}
 {% block page_subtitle %}Live status of {{ total }} monitors across {{ devices_total }} devices · refreshed every 10 seconds{% endblock %}
 {% block page_actions %}
-  <a href="{% url 'ui:maintenance' %}" class="btn">{% icon "wrench" %} Schedule maintenance</a>
-  <a href="{% url 'ui:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>
+{% if can.edit %}  <a href="{% url 'ui:maintenance' %}" class="btn">{% icon "wrench" %} Schedule maintenance</a>
+  <a href="{% url 'ui:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -105,7 +105,7 @@
                   {% if i.ack %}<span class="flex items-center gap-1">{% icon "check" "size-3" %} Ack by {{ i.ack }}</span>{% endif %}
                 </div>
               </div>
-              {% if not i.ack %}<button class="btn btn-sm" x-data @click="$store.toast.show('Incident #{{ i.id }} acknowledged — prototype only')">Acknowledge</button>{% endif %}
+              {% if not i.ack and can.edit %}<button class="btn btn-sm" x-data @click="$store.toast.show('Incident #{{ i.id }} acknowledged — prototype only')">Acknowledge</button>{% endif %}
             </div>
           </div>
         {% empty %}
@@ -216,6 +216,7 @@
     </section>
   </div>
 
+  {% if can.audit %}
   <section class="card">
     <div class="card-head">
       <h2 class="card-title">Recent activity</h2>
@@ -239,5 +240,6 @@
       </table>
     </div>
   </section>
+  {% endif %}
 </div>
 {% endblock %}

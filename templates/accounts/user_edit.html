@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}{{ target.name }}{% endblock %}
+{% block crumb %}Administration / Users{% endblock %}
+{% block heading %}{{ target.name }}{% endblock %}
+
+{% block page_header %}
+<div class="card mb-4 flex flex-wrap items-center gap-4 p-5">
+  {% include "components/avatar.html" with name=target.name size="size-12" %}
+  <div class="flex-1"><h1 class="text-xl font-semibold tracking-tight">{{ target.name }}</h1>
+    <p class="text-[13px] text-muted">@{{ target.username }} · last sign-in {% if target.last_login %}{{ target.last_login|naturaltime }}{% else %}never{% endif %} · added {{ target.date_joined|date:"d M Y" }}</p></div>
+  <a href="{% url 'accounts:users' %}" class="btn">{% icon "chevron-left" %} All users</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+  <form method="post" class="card lg:col-span-8" novalidate>
+    {% csrf_token %}
+    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Details & role</h2></div>
+    <div class="grid gap-4 p-5 sm:grid-cols-2">
+      <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+      {% include "components/field.html" with field=form.full_name %}
+      {% include "components/field.html" with field=form.username %}
+      {% include "components/field.html" with field=form.email cls="sm:col-span-2" %}
+      {% include "components/field.html" with field=form.role %}
+      {% if form.is_active %}
+        <label class="flex items-center gap-2 self-end pb-2 text-[13px]">{{ form.is_active }} {{ form.is_active.label }}</label>
+      {% else %}
+        <p class="hint self-end pb-2">You can't deactivate your own account.</p>
+      {% endif %}
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><a href="{% url 'accounts:users' %}" class="btn">Cancel</a><button class="btn btn-primary">Save changes</button></div>
+  </form>
+
+  <section class="card self-start lg:col-span-4">
+    <div class="card-head"><h2 class="card-title">Security</h2></div>
+    <dl class="card-body grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[13px]">
+      <dt class="text-muted">Two-factor</dt><dd>{% if has_2fa %}<span class="text-up">Set up</span>{% else %}<span class="text-warn">At next sign-in</span>{% endif %}</dd>
+      <dt class="text-muted">Password</dt><dd>{% if target.must_change_password %}<span class="text-warn">Temporary</span>{% else %}Set by user{% endif %}</dd>
+      <dt class="text-muted">Reveal code</dt><dd>{% if target.profile.has_reveal_code %}Set{% else %}Not set{% endif %}</dd>
+      <dt class="text-muted">Sign-in</dt><dd>{% if login_locked %}<span class="text-down">Locked</span>{% else %}OK{% endif %}</dd>
+      <dt class="text-muted">Vault</dt><dd>{% if target.profile.vault_locked %}<span class="text-down">Locked</span>{% else %}OK{% endif %}</dd>
+    </dl>
+    <div class="border-t border-line p-1.5">
+      {% include "accounts/partials/user_actions.html" with target=target %}
+    </div>
+  </section>
+</div>
+{% endblock %}

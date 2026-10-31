@@ -1,5 +1,5 @@
 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" id="status-counters"
-     hx-get="{% url 'ui:dashboard_live' %}" hx-trigger="every 10s" hx-swap="outerHTML">
+     hx-get="{% url 'ui:dashboard_live' %}" hx-trigger="every 10s" hx-swap="outerHTML" hx-headers='{"X-Background": "1"}'>
   {% include "partials/counter.html" with label="Up" value=counts.up tone="up" icon_name="circle-check" status="up" trend="+2" %}
   {% include "partials/counter.html" with label="Down" value=counts.down tone="down" icon_name="circle-x" status="down" trend="+2" bad=True %}
   {% include "partials/counter.html" with label="Unreachable" value=counts.unreachable tone="unreach" icon_name="git-branch" status="unreachable" trend="+4" bad=True %}

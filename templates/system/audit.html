@@ -5,7 +5,7 @@
 {% block heading %}Audit log{% endblock %}
 {% block page_title %}Audit log{% endblock %}
 {% block page_subtitle %}Everything that happens in NetCore: logins, changes (with before and after values), reveals, imports and exports. Append-only.{% endblock %}
-{% block page_actions %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endblock %}
+{% block page_actions %}{% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}{% endblock %}
 
 {% block content %}
 <section class="card overflow-hidden">

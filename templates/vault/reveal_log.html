@@ -4,7 +4,7 @@
 {% block heading %}Access log{% endblock %}
 {% block page_title %}Vault access log{% endblock %}
 {% block page_subtitle %}Every reveal, copy, wrong code and lockout. This log can't be edited or deleted.{% endblock %}
-{% block page_actions %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endblock %}
+{% block page_actions %}{% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">

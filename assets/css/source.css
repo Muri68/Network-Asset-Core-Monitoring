@@ -377,3 +377,8 @@
 .htmx-request .htmx-hide-on-request { display: none; }
 .htmx-indicator { display: none; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }
+
+/* Fields Django marks invalid after validation */
+.input[aria-invalid="true"] {
+  border-color: var(--down);
+}

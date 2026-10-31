@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
   <title>{% block title %}Sign in{% endblock %} · NetCore</title>
   <script>
     (function () { var t = null; try { t = localStorage.getItem("theme"); } catch (e) {} document.documentElement.dataset.theme = t || "dark"; })();
@@ -18,11 +19,11 @@
       <div class="my-auto max-w-md">
         <h2 class="text-3xl leading-tight font-semibold tracking-tight">See your whole network <span class="text-up">at a glance.</span></h2>
         <p class="mt-4 text-[15px] text-muted">Uptime, IP blocks, racks, every port and cable, and a password vault that logs every access.</p>
-        <div class="mt-10 grid grid-cols-3 gap-3">
-          <div class="card p-4"><div class="text-xs text-muted">Monitors</div><div class="stat-num mt-2 text-up">26</div></div>
-          <div class="card p-4"><div class="text-xs text-muted">Devices</div><div class="stat-num mt-2">30</div></div>
-          <div class="card p-4"><div class="text-xs text-muted">Uptime</div><div class="stat-num mt-2">99.9%</div></div>
-        </div>
+        <ul class="mt-10 space-y-3 text-[13px] text-ink-2">
+          <li class="flex items-center gap-3"><span class="icon-chip text-up">{% icon "smartphone" "size-4" %}</span>Two-factor sign-in for every account</li>
+          <li class="flex items-center gap-3"><span class="icon-chip text-up">{% icon "lock" "size-4" %}</span>Locks after 5 wrong passwords</li>
+          <li class="flex items-center gap-3"><span class="icon-chip text-up">{% icon "clock" "size-4" %}</span>Signs you out after 30 minutes idle</li>
+        </ul>
       </div>
       <div class="text-xs text-faint">Accessible on the local network only.</div>
       <div class="pointer-events-none absolute -right-40 -bottom-40 size-[520px] rounded-full bg-up/10 blur-3xl"></div>
@@ -30,6 +31,16 @@
     <div class="flex items-center justify-center p-6">
       <div class="w-full max-w-sm">
         <div class="mb-8 flex items-center gap-2.5 lg:hidden">{% include "components/logo.html" %}<span class="text-[15px] font-semibold">NetCore</span></div>
+        {% if pending %}
+          <div class="mb-6 flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3 py-2">
+            {% include "components/avatar.html" with name=pending.name size="size-7" %}
+            <div class="min-w-0 flex-1 text-xs"><div class="truncate font-medium">{{ pending.name }}</div><div class="text-muted">Signing in</div></div>
+            <a href="{% url 'accounts:login' %}" class="text-xs text-muted hover:text-ink">Not you?</a>
+          </div>
+        {% endif %}
+        {% for m in messages %}
+          <div class="mb-4 rounded-lg border px-3 py-2.5 text-[13px] {% if m.level_tag == 'error' %}border-down/30 bg-down-soft text-down{% elif m.level_tag == 'warning' %}border-warn/30 bg-warn-soft text-warn{% else %}border-up/30 bg-up-soft text-up{% endif %}">{{ m }}</div>
+        {% endfor %}
         {% block content %}{% endblock %}
       </div>
     </div>

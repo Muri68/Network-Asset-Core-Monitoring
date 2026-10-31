@@ -1,0 +1,25 @@
+{# POST action buttons for one user. Expects `target`. #}
+{% if target != request.user %}
+  <form method="post" action="{% url 'accounts:user_action' target.pk 'reset-password' %}" onsubmit="return confirm('Give {{ target.name|escapejs }} a new temporary password? Their current password stops working.')">{% csrf_token %}
+    <button class="nav-link w-full">{% icon "rotate-ccw" %} Reset password</button></form>
+  <form method="post" action="{% url 'accounts:user_action' target.pk 'reset-2fa' %}" onsubmit="return confirm('Reset two-factor for {{ target.name|escapejs }}? They will set it up again at next sign-in.')">{% csrf_token %}
+    <button class="nav-link w-full">{% icon "smartphone" %} Reset 2FA</button></form>
+{% endif %}
+{% if target.login_locked %}
+  <form method="post" action="{% url 'accounts:user_action' target.pk 'unlock-login' %}">{% csrf_token %}
+    <button class="nav-link w-full">{% icon "lock-open" %} Unlock sign-in</button></form>
+{% endif %}
+{% if target.profile.vault_locked %}
+  <form method="post" action="{% url 'accounts:user_action' target.pk 'unlock-vault' %}">{% csrf_token %}
+    <button class="nav-link w-full">{% icon "lock-open" %} Unlock vault</button></form>
+{% endif %}
+{% if target != request.user %}
+  <div class="my-1 border-t border-line"></div>
+  {% if target.is_active %}
+    <form method="post" action="{% url 'accounts:user_action' target.pk 'deactivate' %}" onsubmit="return confirm('Deactivate {{ target.name|escapejs }}? They will be signed out and can no longer sign in.')">{% csrf_token %}
+      <button class="nav-link w-full text-down hover:text-down">{% icon "circle-x" %} Deactivate</button></form>
+  {% else %}
+    <form method="post" action="{% url 'accounts:user_action' target.pk 'activate' %}">{% csrf_token %}
+      <button class="nav-link w-full">{% icon "circle-check" %} Activate</button></form>
+  {% endif %}
+{% endif %}

@@ -14,6 +14,9 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.accounts.decorators import capability_required
+from apps.accounts.roles import can
+
 from . import fake_data as fd
 
 
@@ -26,24 +29,11 @@ def _get(items, pk):
     try:
         return items[pk]
     except KeyError:
-        raise Http404
+        raise Http404 from None
 
 
 def _q(request):
     return request.GET.get("q", "").strip().lower()
-
-
-# --------------------------------------------------------------------------
-# Auth (static screens only)
-# --------------------------------------------------------------------------
-
-
-def login(request):
-    return render(request, "auth/login.html")
-
-
-def login_2fa(request):
-    return render(request, "auth/login_2fa.html")
 
 
 # --------------------------------------------------------------------------
@@ -110,7 +100,7 @@ def dashboard(request):
             "colors": ["--maint", "--up", "--warn", "--unreach", "--paused"],
         },
         "donut_legend": list(zip(["Switches", "Servers & storage", "Cameras", "Access points", "Other"],
-                                 donut_vals, ["maint", "up", "warn", "unreach", "paused"], donut_keys)),
+                                 donut_vals, ["maint", "up", "warn", "unreach", "paused"], donut_keys, strict=True)),
     }
     return _page(request, "monitoring/dashboard.html", "dashboard", **ctx)
 
@@ -156,6 +146,7 @@ def monitor_detail(request, pk):
                  types=fd.MONITOR_TYPES, chart={"labels": labels, "values": m["series"]})
 
 
+@capability_required("edit")
 def monitor_form(request):
     return _page(request, "monitoring/monitor_form.html", "monitors", devices=fd.DEVICES, monitors=fd.MONITORS,
                  types=fd.MONITOR_TYPES)
@@ -199,7 +190,9 @@ def devices(request):
 def device_detail(request, pk):
     d = _get(fd.DEVICES_BY_ID, pk)
     ports = fd.ports_for(d)
-    ips = [{"ip": d["mgmt_ip"], "service": "Management", "status": "used", "nat": "", "dns": ""}] if d["mgmt_ip"] else []
+    ips = []
+    if d["mgmt_ip"]:
+        ips.append({"ip": d["mgmt_ip"], "service": "Management", "status": "used", "nat": "", "dns": ""})
     ips += [{"ip": ip, **a} for ip, a in fd.IP_ASSIGNMENTS.items() if a["device"] == d["name"]]
     children = [c for c in fd.DEVICES if c["parent_id"] == d["id"]]
     ctx = {
@@ -221,6 +214,7 @@ def device_detail(request, pk):
     return _page(request, "inventory/device_detail.html", "devices", **ctx)
 
 
+@capability_required("edit")
 def device_form(request):
     return _page(request, "inventory/device_form.html", "devices", types=fd.DEVICE_TYPES, racks=fd.RACKS,
                  devices=fd.DEVICES, locations=fd.LOCATIONS)
@@ -312,6 +306,7 @@ def calculator(request):
 # --------------------------------------------------------------------------
 
 
+@capability_required("vault")
 def vault(request):
     folder = request.GET.get("folder", "")
     q = _q(request)
@@ -324,6 +319,7 @@ def vault(request):
                  q=q, total=len(fd.CREDENTIALS), recent=fd.REVEAL_LOG[:5])
 
 
+@capability_required("vault")
 def credential_detail(request, pk):
     c = _get(fd.CREDENTIALS_BY_ID, pk)
     return _page(request, "vault/credential_detail.html", "vault", c=c,
@@ -335,6 +331,7 @@ def credential_detail(request, pk):
 MAX_REVEAL_ATTEMPTS = 5
 
 
+@capability_required("vault")
 @require_POST
 def credential_reveal(request, pk):
     """Prototype reveal flow: accepts fd.REVEAL_CODE, counts failures in a cookie."""
@@ -356,10 +353,15 @@ def credential_reveal(request, pk):
     return response
 
 
+@capability_required("vault")
 def reveal_log(request):
-    return _page(request, "vault/reveal_log.html", "vault", log=fd.REVEAL_LOG)
+    log = fd.REVEAL_LOG
+    if not can(request.user, "vault_logs_all"):
+        log = [r for r in log if r["user"] == request.user.name]
+    return _page(request, "vault/reveal_log.html", "vault", log=log, all_users=can(request.user, "vault_logs_all"))
 
 
+@capability_required("audit")
 def audit(request):
     action = request.GET.get("action", "")
     actor = request.GET.get("actor", "")
@@ -378,19 +380,12 @@ def audit(request):
 # --------------------------------------------------------------------------
 
 
-def users(request):
-    return _page(request, "accounts/users.html", "users", users=fd.USERS, matrix=fd.ROLE_MATRIX)
-
-
-def profile(request):
-    return _page(request, "accounts/profile.html", "profile",
-                 my_reveals=[r for r in fd.REVEAL_LOG if r["user"] == fd.CURRENT_USER["name"]])
-
-
+@capability_required("export")
 def data(request):
     return _page(request, "system/data.html", "data", resources=fd.IMPORT_RESOURCES)
 
 
+@capability_required("import")
 @require_POST
 def import_preview(request):
     rows = fd.IMPORT_PREVIEW
@@ -402,5 +397,6 @@ def import_preview(request):
     })
 
 
+@capability_required("settings")
 def settings_page(request):
     return _page(request, "system/settings.html", "settings", users=fd.USERS)

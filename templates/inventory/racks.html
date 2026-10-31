@@ -4,7 +4,7 @@
 {% block heading %}Racks{% endblock %}
 {% block page_title %}Racks{% endblock %}
 {% block page_subtitle %}HQ — Server Room · {{ racks|length }} racks. Click a device to open it.{% endblock %}
-{% block page_actions %}<button class="btn btn-primary" x-data @click="$store.toast.show('Add rack form — prototype only')">{% icon "plus" %} Add rack</button>{% endblock %}
+{% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$store.toast.show('Add rack form — prototype only')">{% icon "plus" %} Add rack</button>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

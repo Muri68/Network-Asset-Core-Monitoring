@@ -4,36 +4,48 @@ A professional, independent network monitoring application that can be installed
 Self-hosted (LAN-only) uptime monitoring, IP address management, asset inventory,
 rack/port documentation and an audited password vault. See [PLAN.md](PLAN.md) for the full spec.
 
-## Current stage: UI prototype
+## Current stage
 
-Every page is built with **fake data** (`apps/ui/fake_data.py`). There is no database, login
-or background worker yet, and nothing you type is saved.
+**Live:** sign-in with mandatory two-factor (authenticator app + backup codes), roles
+(Admin / Engineer / Viewer), user management, profile, vault reveal-code setup.
+**Still sample data:** monitoring, inventory, racks, IPAM, vault contents, audit log, settings.
 
 ## Run it locally
 
 ```bash
-uv venv --python 3.13 .venv          # or: python3.13 -m venv .venv
+uv venv --python 3.13 .venv                 # or: python3.13 -m venv .venv
 source .venv/bin/activate
-uv pip install -r requirements.txt   # or: pip install -r requirements.txt
-python manage.py tailwind runserver  # builds CSS on change + starts Django
+uv pip install -r requirements-dev.txt      # or: pip install -r requirements-dev.txt
+cp .env.example .env                        # then edit DJANGO_SECRET_KEY
+python manage.py migrate
+python manage.py bootstrap_admin --username yourname --full-name "Your Name" --email you@example.com
+python manage.py tailwind runserver         # builds CSS on change + starts Django
 ```
 
-Open http://127.0.0.1:8000. The first run downloads the Tailwind CLI (v4.3.3) once.
+Open http://127.0.0.1:8000 and sign in. On first sign-in you scan a QR code with an
+authenticator app (Google/Microsoft Authenticator, Authy…), save your backup codes, and
+create your vault reveal code. Add other users from **Users & roles**.
 
-Try:
-- **⌘K / Ctrl+K** — search devices, IPs, monitors, credentials
-- **Password vault → any credential → Reveal** — demo reveal code `123456` (5 wrong codes lock it)
-- **Devices → SW-CORE-01** — front-panel port map, ports & connections, cable trace
-- **Prefixes → 129.205.100.128/28** — subnet breakdown and address map
-- **Subnet calculator** — type any CIDR
-- Sun/moon icon — light/dark theme
+Locked out after 5 wrong passwords? Wait 30 minutes, ask another Admin, or run
+`python manage.py axes_reset_username <username>`.
+
+## Tests
+
+```bash
+python -m pytest        # all tests
+ruff check apps config tests
+```
+
+In the sample-data vault, the demo reveal code is still `123456`.
 
 ## Layout
 
 ```
 config/            Django settings & URLs
-apps/ui/           Prototype views, fake data, template tags (icons, gauge, rings)
-templates/         All pages, by area (monitoring, inventory, dcim, ipam, vault, accounts, system)
+apps/accounts/     Users, roles, sign-in flow, 2FA, profile, user management
+apps/ui/           Sample-data views (replaced area by area), template tags
+templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
+tests/             pytest suite
 assets/css/        Tailwind source (design tokens & components)
 static/            Built CSS, app.js, vendored HTMX/Alpine/Chart.js, Inter font, Lucide icons
 ```

@@ -2,11 +2,20 @@
 {% block content %}
 <h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
 <p class="mt-1 text-[13px] text-muted">Use the account your administrator created for you.</p>
-<form action="{% url 'ui:login_2fa' %}" method="get" class="mt-8 space-y-4">
-  <div><label class="field-label">Username or email</label><input class="input h-11" name="u" autocomplete="username" autofocus required></div>
-  <div x-data="{ show: false }"><div class="flex justify-between"><label class="field-label">Password</label></div>
-    <div class="relative"><input :type="show ? 'text' : 'password'" class="input h-11 pr-10" autocomplete="current-password" required>
-      <button type="button" class="absolute top-3 right-3 text-muted" @click="show = !show" aria-label="Show password">{% icon "eye" %}</button></div></div>
+<form method="post" class="mt-8 space-y-4" novalidate>
+  {% csrf_token %}
+  {% include "components/form_errors.html" %}
+  <div>
+    <label class="field-label" for="id_username">Username or email</label>
+    <input id="id_username" name="username" value="{{ form.username.value|default:'' }}" class="input h-11" autocomplete="username" autocapitalize="none" autofocus required>
+  </div>
+  <div x-data="{ show: false }">
+    <label class="field-label" for="id_password">Password</label>
+    <div class="relative">
+      <input id="id_password" name="password" :type="show ? 'text' : 'password'" type="password" class="input h-11 pr-10" autocomplete="current-password" required>
+      <button type="button" class="absolute top-3 right-3 text-muted" @click="show = !show" aria-label="Show password">{% icon "eye" %}</button>
+    </div>
+  </div>
   <button class="btn btn-primary h-11 w-full">Continue</button>
 </form>
 <p class="mt-6 text-center text-xs text-muted">Forgot your password? Ask an Admin to reset it.</p>

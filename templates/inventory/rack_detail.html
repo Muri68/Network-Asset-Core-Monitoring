@@ -6,7 +6,7 @@
 {% block page_subtitle %}{{ rack.location }} · {{ rack.height }}U · {{ rack.used }}U used ({{ rack.pct }}%){% endblock %}
 {% block page_actions %}
   <div class="flex gap-1">{% for r in racks %}<a href="{% url 'ui:rack_detail' r.id %}" class="chip {% if r.id == rack.id %}chip-active{% endif %}">Rack {{ r.id }}</a>{% endfor %}</div>
-  <a href="{% url 'ui:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>
+  {% if can.edit %}<a href="{% url 'ui:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>{% endif %}
 {% endblock %}
 
 {% block content %}

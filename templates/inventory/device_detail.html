@@ -24,6 +24,7 @@
     </div>
     <div class="flex flex-wrap gap-2" x-data>
       {% if d.mgmt_ip %}<a href="https://{{ d.mgmt_ip }}" target="_blank" rel="noopener" class="btn">{% icon "external-link" %} Open web UI</a>{% endif %}
+      {% if can.edit %}
       <a href="{% url 'ui:device_new' %}" class="btn">{% icon "pencil" %} Edit</a>
       <div class="relative" x-data="{ open: false }" @click.outside="open = false">
         <button class="btn btn-icon" @click="open = !open" aria-label="More">{% icon "ellipsis-vertical" %}</button>
@@ -32,7 +33,7 @@
           <a href="{% url 'ui:maintenance' %}" class="nav-link">{% icon "wrench" %} Schedule maintenance</a>
           <button class="nav-link w-full" @click="open=false; $store.toast.show('Device marked retired — prototype only','paused')">{% icon "archive" %} Retire device</button>
         </div>
-      </div>
+      </div>{% endif %}
     </div>
   </div>
 </div>
@@ -45,7 +46,7 @@
     <button class="tab" :class="tab==='ports' && 'tab-active'" @click="tab='ports'">{% icon "ethernet-port" "size-4" %} Ports & connections <span class="pill pill-muted">{{ connected }}/{{ ports|length }}</span></button>
     <button class="tab" :class="tab==='ips' && 'tab-active'" @click="tab='ips'">{% icon "globe" "size-4" %} IP addresses <span class="pill pill-muted">{{ ips|length }}</span></button>
     <button class="tab" :class="tab==='monitors' && 'tab-active'" @click="tab='monitors'">{% icon "activity" "size-4" %} Monitors <span class="pill pill-muted">{{ monitors|length }}</span></button>
-    <button class="tab" :class="tab==='creds' && 'tab-active'" @click="tab='creds'">{% icon "key-round" "size-4" %} Credentials <span class="pill pill-muted">{{ credentials|length }}</span></button>
+    {% if can.vault %}<button class="tab" :class="tab==='creds' && 'tab-active'" @click="tab='creds'">{% icon "key-round" "size-4" %} Credentials <span class="pill pill-muted">{{ credentials|length }}</span></button>{% endif %}
     <button class="tab" :class="tab==='history' && 'tab-active'" @click="tab='history'">{% icon "history" "size-4" %} History</button>
   </div>
 
@@ -131,10 +132,10 @@
   <section x-show="tab==='ports'" x-cloak class="card overflow-hidden" x-data="{ onlyConnected: false }">
     <div class="flex flex-wrap items-center gap-2 border-b border-line p-3">
       <label class="flex items-center gap-2 text-[13px] text-ink-2"><input type="checkbox" x-model="onlyConnected" class="size-4 accent-[var(--accent)]"> Connected ports only</label>
-      <div class="ml-auto flex gap-2">
+      {% if can.edit %}<div class="ml-auto flex gap-2">
         <button class="btn btn-sm" @click="$store.toast.show('Bulk port creator — prototype only')">{% icon "plus" "size-3.5" %} Bulk add ports</button>
         <button class="btn btn-primary btn-sm" @click="$dispatch('open-connect')">{% icon "cable" "size-3.5" %} Add connection</button>
-      </div>
+      </div>{% endif %}
     </div>
     <div class="table-wrap">
       <table class="table">
@@ -157,7 +158,7 @@
                 {% if p.connection %}
                   <button class="btn btn-ghost btn-sm" hx-get="{% url 'ui:connection_trace' p.connection.id %}" hx-target="#trace-body" @click="$dispatch('open-trace')">{% icon "waypoints" "size-3.5" %} Trace</button>
                 {% endif %}
-                <button class="btn btn-ghost btn-icon btn-sm" @click="$dispatch('open-connect')" aria-label="Edit">{% icon "pencil" "size-3.5" %}</button>
+                {% if can.edit %}<button class="btn btn-ghost btn-icon btn-sm" @click="$dispatch('open-connect')" aria-label="Edit">{% icon "pencil" "size-3.5" %}</button>{% endif %}
               </td>
             </tr>
           {% endfor %}
@@ -196,12 +197,13 @@
         {% endfor %}
       </ul>
     {% else %}
-      {% url 'ui:monitor_new' as new_url %}
+      {% if can.edit %}{% url 'ui:monitor_new' as new_url %}{% endif %}
       {% include "components/empty_state.html" with icon="activity" title="Not monitored" text="Add a ping or TCP monitor to get alerts when this device goes down." action_url=new_url action_label="Add monitor" %}
     {% endif %}
   </section>
 
   {# ---------------- Credentials ---------------- #}
+  {% if can.vault %}
   <section x-show="tab==='creds'" x-cloak class="card overflow-hidden">
     {% if credentials %}
       <ul class="divide-y divide-line">
@@ -218,6 +220,7 @@
       {% include "components/empty_state.html" with icon="key-round" title="No credentials linked" text="Add a credential in the vault and link it to this device." %}
     {% endif %}
   </section>
+  {% endif %}
 
   {# ---------------- History ---------------- #}
   <section x-show="tab==='history'" x-cloak class="card p-5">
@@ -235,6 +238,6 @@
   </section>
 </div>
 
-{% include "dcim/partials/connect_modal.html" with this_device=d %}
+{% if can.edit %}{% include "dcim/partials/connect_modal.html" with this_device=d %}{% endif %}
 {% include "dcim/partials/trace_modal.html" %}
 {% endblock %}

@@ -3,19 +3,12 @@
 {% block content %}
 <span class="icon-chip size-12 rounded-xl text-up">{% icon "smartphone" "size-5" %}</span>
 <h1 class="mt-5 text-2xl font-semibold tracking-tight">Two-factor check</h1>
-<p class="mt-1 text-[13px] text-muted">Enter the 6-digit code from your authenticator app.</p>
-<form action="{% url 'ui:dashboard' %}" method="get" class="mt-8 space-y-4"
-      x-data="{ d: ['', '', '', '', '', ''] }">
-  <div class="flex justify-between gap-2">
-    <template x-for="(v, i) in d" :key="i">
-      <input x-model="d[i]" maxlength="1" inputmode="numeric" class="input mono h-12 w-12 text-center text-lg"
-             @input="if ($event.target.value && $event.target.nextElementSibling) $event.target.nextElementSibling.focus()">
-    </template>
-  </div>
-  <button class="btn btn-primary h-11 w-full">Verify & sign in</button>
+<p class="mt-1 text-[13px] text-muted">Enter the 6-digit code from your authenticator app, or one of your backup codes.</p>
+<form method="post" class="mt-8 space-y-4" novalidate>
+  {% csrf_token %}
+  <input name="token" autocomplete="one-time-code" maxlength="16" class="input mono h-12 text-center text-lg tracking-[0.3em]" placeholder="000000" aria-invalid="{% if form.token.errors %}true{% else %}false{% endif %}" autofocus required>
+  {% for e in form.token.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  <button class="btn btn-primary h-11 w-full">Verify and sign in</button>
 </form>
-<div class="mt-6 flex justify-between text-xs text-muted">
-  <a href="#" class="hover:text-ink">Use a backup code</a>
-  <a href="{% url 'ui:login' %}" class="hover:text-ink">Back</a>
-</div>
+<p class="mt-6 text-center text-xs text-muted">Lost your phone and your backup codes? Ask an Admin to reset your two-factor.</p>
 {% endblock %}

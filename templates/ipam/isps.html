@@ -4,7 +4,7 @@
 {% block heading %}ISPs & circuits{% endblock %}
 {% block page_title %}ISPs & circuits{% endblock %}
 {% block page_subtitle %}Who provides your internet, how to reach them, and the public IP blocks they gave you.{% endblock %}
-{% block page_actions %}<button class="btn btn-primary" x-data @click="$store.toast.show('Add ISP form — prototype only')">{% icon "plus" %} Add ISP</button>{% endblock %}
+{% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$store.toast.show('Add ISP form — prototype only')">{% icon "plus" %} Add ISP</button>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="grid gap-4 xl:grid-cols-2">

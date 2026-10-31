@@ -13,7 +13,7 @@
     </div>
     <p class="mt-1 text-[13px] text-muted">{{ p.desc }}{% if p.isp %} · {{ p.isp }}{% endif %}</p>
   </div>
-  <div class="flex gap-2"><a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a><button class="btn btn-primary" x-data @click="$dispatch('open-assign', { ip: '' })">{% icon "plus" %} Assign IP</button></div>
+  <div class="flex gap-2">{% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-assign', { ip: '' })">{% icon "plus" %} Assign IP</button>{% endif %}</div>
 </div>
 {% endblock %}
 
@@ -45,7 +45,7 @@
       <div class="card-body">
         <div class="grid gap-1 {% if grid|length <= 16 %}grid-cols-4{% elif grid|length <= 64 %}grid-cols-8{% else %}grid-cols-16{% endif %}">
           {% for r in grid %}
-            <button type="button" x-data @click="$dispatch('open-assign', { ip: '{{ r.ip }}' })" title="{{ r.ip }}{% if r.service %} · {{ r.service }}{% endif %}"
+            <button type="button" x-data {% if can.edit %}@click="$dispatch('open-assign', { ip: '{{ r.ip }}' })"{% else %}disabled{% endif %} title="{{ r.ip }}{% if r.service %} · {{ r.service }}{% endif %}"
                class="aspect-square rounded-[4px] border text-[9px] font-semibold transition hover:brightness-125
                {% if r.role == 'network' or r.role == 'broadcast' %}border-maint/40 bg-maint-soft text-maint
                {% elif r.role == 'gateway' %}border-accent bg-up-soft text-up
@@ -81,7 +81,7 @@
                 <td class="mono hidden text-xs whitespace-nowrap text-ink-2 md:table-cell">{{ r.dns|default:"" }}</td>
                 <td class="mono hidden text-xs whitespace-nowrap text-muted lg:table-cell">{{ r.nat|default:"" }}</td>
                 <td class="text-right" x-data>
-                  {% if r.status == "free" %}<button class="btn btn-sm" @click="$dispatch('open-assign', { ip: '{{ r.ip }}' })">Assign</button>
+                  {% if not can.edit %}{% elif r.status == "free" %}<button class="btn btn-sm" @click="$dispatch('open-assign', { ip: '{{ r.ip }}' })">Assign</button>
                   {% elif r.status != "system" %}<button class="btn btn-ghost btn-icon btn-sm" @click="$dispatch('open-assign', { ip: '{{ r.ip }}' })" aria-label="Edit">{% icon "pencil" "size-3.5" %}</button>{% endif %}
                 </td>
               </tr>
@@ -93,6 +93,7 @@
   </div>
 </div>
 
+{% if can.edit %}
 <div x-data="{ open: false, ip: '' }" @open-assign.window="open = true; ip = $event.detail.ip" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
   <form data-prototype="IP assignment saved" @prototype-submitted="open=false" @click.outside="open=false" class="card w-full max-w-lg p-0">
     <div class="card-head border-b border-line pb-4"><h2 class="card-title">Assign IP address</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
@@ -108,4 +109,5 @@
     <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save</button></div>
   </form>
 </div>
+{% endif %}
 {% endblock %}

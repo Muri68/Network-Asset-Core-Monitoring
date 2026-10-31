@@ -1,0 +1,16 @@
+{% extends "auth/base_auth.html" %}
+{% block title %}Reveal code{% endblock %}
+{% block content %}
+<span class="icon-chip size-12 rounded-xl text-warn">{% icon "lock" "size-5" %}</span>
+<h1 class="mt-5 text-2xl font-semibold tracking-tight">Create your vault reveal code</h1>
+<p class="mt-1 text-[13px] text-muted">You'll type this every time you reveal a password in the vault. Make it different from your login password. 5 wrong codes lock your vault.</p>
+<form method="post" class="mt-8 space-y-4" novalidate>
+  {% csrf_token %}
+  {% include "components/form_errors.html" %}
+  {% include "components/field.html" with field=form.code1 %}
+  {% include "components/field.html" with field=form.code2 %}
+  <p class="hint">6–32 characters.</p>
+  <button class="btn btn-primary h-11 w-full">Save reveal code</button>
+</form>
+<form method="post" action="{% url 'accounts:logout' %}" class="mt-6 text-center">{% csrf_token %}<button class="text-xs text-muted hover:text-ink">Sign out instead</button></form>
+{% endblock %}

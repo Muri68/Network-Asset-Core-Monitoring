@@ -24,7 +24,7 @@
         {% icon "triangle-alert" "size-4 shrink-0" %}
         <span>The address you typed is a host inside the subnet. The network itself is <b class="mono" x-text="s && s.cidr"></b>, and that's what gets saved.</span>
       </div>
-      <a href="{% url 'ui:prefixes' %}" class="btn w-full" x-show="s">{% icon "plus" %} Save as prefix</a>
+      {% if can.edit %}<a href="{% url 'ui:prefixes' %}" class="btn w-full" x-show="s">{% icon "plus" %} Save as prefix</a>{% endif %}
     </div>
   </section>
 

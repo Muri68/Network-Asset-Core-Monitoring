@@ -5,8 +5,8 @@
 {% block page_title %}Connections{% endblock %}
 {% block page_subtitle %}Every cable in one place: {{ total }} connections. Each one also shows on both devices.{% endblock %}
 {% block page_actions %}
-  <a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export port map</a>
-  <button class="btn btn-primary" x-data @click="$dispatch('open-connect')">{% icon "plus" %} Add connection</button>
+  {% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export port map</a>{% endif %}
+{% if can.edit %}  <button class="btn btn-primary" x-data @click="$dispatch('open-connect')">{% icon "plus" %} Add connection</button>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -47,6 +47,6 @@
   </div>
 </section>
 
-{% include "dcim/partials/connect_modal.html" %}
+{% if can.edit %}{% include "dcim/partials/connect_modal.html" %}{% endif %}
 {% include "dcim/partials/trace_modal.html" %}
 {% endblock %}

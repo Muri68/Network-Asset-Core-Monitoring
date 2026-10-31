@@ -6,7 +6,7 @@
 {% block page_subtitle %}Public blocks from your ISPs and private subnets, with every IP address and who uses it.{% endblock %}
 {% block page_actions %}
   <a href="{% url 'ui:calculator' %}" class="btn">{% icon "grid-3x3" %} Calculator</a>
-  <button class="btn btn-primary" x-data @click="$dispatch('open-prefix')">{% icon "plus" %} Add prefix</button>
+{% if can.edit %}  <button class="btn btn-primary" x-data @click="$dispatch('open-prefix')">{% icon "plus" %} Add prefix</button>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -39,6 +39,7 @@
   </div>
 </section>
 
+{% if can.edit %}
 {# Add prefix with live calculation #}
 <div x-data="{ open: false, cidr: '129.205.100.140/28', get s() { return netcore.subnet(this.cidr) } }"
      @open-prefix.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
@@ -70,4 +71,5 @@
     <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save prefix</button></div>
   </form>
 </div>
+{% endif %}
 {% endblock %}

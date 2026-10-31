@@ -4,7 +4,7 @@
 {% block heading %}Maintenance windows{% endblock %}
 {% block page_title %}Maintenance windows{% endblock %}
 {% block page_subtitle %}Checks keep running during a window, but no alerts are sent for the selected devices.{% endblock %}
-{% block page_actions %}<button class="btn btn-primary" x-data @click="$dispatch('open-maint')">{% icon "plus" %} Schedule window</button>{% endblock %}
+{% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-maint')">{% icon "plus" %} Schedule window</button>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -26,13 +26,14 @@
       <div class="mt-4 flex flex-wrap gap-1.5">{% for t in w.targets %}<span class="tag">{{ t }}</span>{% endfor %}</div>
       <div class="mt-auto flex items-center justify-between gap-2 pt-5 text-xs text-muted" x-data>
         <span class="flex items-center gap-1.5">{% include "components/avatar.html" with name=w.by size="size-5" %}{{ w.by }}</span>
-        {% if w.state == "active" %}<button class="btn btn-sm" @click="$store.toast.show('Window ended early — prototype only')">End now</button>
+        {% if not can.edit %}{% elif w.state == "active" %}<button class="btn btn-sm" @click="$store.toast.show('Window ended early — prototype only')">End now</button>
         {% elif w.state == "scheduled" %}<button class="btn btn-sm btn-ghost" @click="$store.toast.show('Window cancelled — prototype only','paused')">Cancel</button>{% endif %}
       </div>
     </article>
   {% endfor %}
 </div>
 
+{% if can.edit %}
 {# Schedule modal #}
 <div x-data="{ open: false }" @open-maint.window="open = true" x-show="open" x-cloak
      class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm" x-transition.opacity>
@@ -55,4 +56,5 @@
     </div>
   </form>
 </div>
+{% endif %}
 {% endblock %}

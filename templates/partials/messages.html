@@ -1,0 +1,3 @@
+{% if messages %}
+  <div x-data x-init="{% for m in messages %}$store.toast.show('{{ m|escapejs }}', '{% if m.level_tag == 'error' %}down{% elif m.level_tag == 'warning' %}warn{% else %}up{% endif %}');{% endfor %}"></div>
+{% endif %}

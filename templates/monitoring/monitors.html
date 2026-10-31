@@ -5,8 +5,8 @@
 {% block page_title %}Monitors{% endblock %}
 {% block page_subtitle %}{{ total }} monitors · checks every 30–60s · down after 3 failed checks in a row{% endblock %}
 {% block page_actions %}
-  <a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>
-  <a href="{% url 'ui:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>
+  {% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}
+  {% if can.edit %}<a href="{% url 'ui:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -70,9 +70,9 @@
                 <button class="btn btn-ghost btn-icon btn-sm" @click="open = !open" aria-label="Actions">{% icon "ellipsis" %}</button>
                 <div x-show="open" x-cloak x-transition class="card absolute right-0 z-20 mt-1 w-48 p-1.5 text-left">
                   <a href="{% url 'ui:monitor_detail' m.id %}" class="nav-link">{% icon "eye" %} View details</a>
-                  <button class="nav-link w-full" @click="open=false; $store.toast.show('Check queued for {{ m.name }} — prototype only')">{% icon "refresh-cw" %} Check now</button>
+{% if can.edit %}                  <button class="nav-link w-full" @click="open=false; $store.toast.show('Check queued for {{ m.name }} — prototype only')">{% icon "refresh-cw" %} Check now</button>
                   <button class="nav-link w-full" @click="open=false; $store.toast.show('{{ m.name }} paused — prototype only', 'paused')">{% icon "pause" %} Pause</button>
-                  <a href="{% url 'ui:maintenance' %}" class="nav-link">{% icon "wrench" %} Maintenance</a>
+                  <a href="{% url 'ui:maintenance' %}" class="nav-link">{% icon "wrench" %} Maintenance</a>{% endif %}
                 </div>
               </div>
             </td>

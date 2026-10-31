@@ -4,7 +4,7 @@
 {% block crumb %}Administration{% endblock %}
 {% block heading %}Users & roles{% endblock %}
 {% block page_title %}Users & roles{% endblock %}
-{% block page_subtitle %}Only Admins can add users. New users get a temporary password and must set up 2FA and a reveal code on first login.{% endblock %}
+{% block page_subtitle %}Only Admins can add users. New users get a temporary password and must set up two-factor sign-in (and a reveal code for vault roles) at their first sign-in.{% endblock %}
 {% block page_actions %}<button class="btn btn-primary" x-data @click="$dispatch('open-user')">{% icon "user-plus" %} Add user</button>{% endblock %}
 
 {% block content %}
@@ -12,34 +12,39 @@
   <section class="card overflow-hidden">
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>User</th><th>Role</th><th class="hidden md:table-cell">Security</th><th class="hidden lg:table-cell">Last login</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>User</th><th>Role</th><th class="hidden md:table-cell">Security</th><th class="hidden lg:table-cell">Last sign-in</th><th>Status</th><th></th></tr></thead>
         <tbody>
           {% for u in users %}
             <tr>
-              <td><div class="flex items-center gap-3">{% include "components/avatar.html" with name=u.name %}<div><div class="font-medium">{{ u.name }}</div><div class="text-xs text-muted">{{ u.email }}</div></div></div></td>
-              <td>{% if u.role == "Admin" %}<span class="pill pill-up">Admin</span>{% elif u.role == "Engineer" %}<span class="pill pill-maint">Engineer</span>{% else %}<span class="pill pill-muted">Viewer</span>{% endif %}</td>
+              <td>
+                <a href="{% url 'accounts:user_edit' u.pk %}" class="group flex items-center gap-3">
+                  {% include "components/avatar.html" with name=u.name %}
+                  <div><div class="font-medium group-hover:underline">{{ u.name }}{% if u == request.user %} <span class="pill pill-muted ml-1">You</span>{% endif %}</div>
+                    <div class="text-xs text-muted">@{{ u.username }}{% if u.email %} · {{ u.email }}{% endif %}</div></div>
+                </a>
+              </td>
+              <td>{% if u.role == "Admin" %}<span class="pill pill-up">Admin</span>{% elif u.role == "Engineer" %}<span class="pill pill-maint">Engineer</span>{% elif u.role == "Viewer" %}<span class="pill pill-muted">Viewer</span>{% else %}<span class="pill pill-down">No role</span>{% endif %}</td>
               <td class="hidden md:table-cell">
                 <div class="flex flex-wrap gap-1.5">
-                  <span class="pill {% if u.twofa %}pill-up{% else %}pill-down{% endif %}">{% icon "smartphone" "size-3" %} 2FA</span>
-                  <span class="pill {% if u.telegram %}pill-up{% else %}pill-muted{% endif %}">{% icon "send" "size-3" %} Telegram</span>
-                  <span class="pill {% if u.reveal_code %}pill-up{% else %}pill-muted{% endif %}">{% icon "key-round" "size-3" %} Reveal code</span>
+                  <span class="pill {% if u.has_2fa %}pill-up{% else %}pill-warn{% endif %}" title="{% if u.has_2fa %}Two-factor set up{% else %}Will set up two-factor at next sign-in{% endif %}">{% icon "smartphone" "size-3" %} 2FA{% if not u.has_2fa %} pending{% endif %}</span>
+                  {% if u.role != "Viewer" %}<span class="pill {% if u.profile.has_reveal_code %}pill-up{% else %}pill-muted{% endif %}">{% icon "key-round" "size-3" %} Reveal code</span>{% endif %}
+                  {% if u.must_change_password %}<span class="pill pill-warn">Temp password</span>{% endif %}
                 </div>
               </td>
-              <td class="hidden text-xs text-muted lg:table-cell">{{ u.last_login|naturaltime }}</td>
+              <td class="hidden text-xs text-muted lg:table-cell">{% if u.last_login %}{{ u.last_login|naturaltime }}{% else %}Never{% endif %}</td>
               <td>
-                {% if u.vault_locked %}<span class="pill pill-down">{% icon "lock" "size-3" %} Vault locked</span>
-                {% elif u.active %}<span class="pill pill-up">Active</span>{% else %}<span class="pill pill-muted">Deactivated</span>{% endif %}
+                <div class="flex flex-wrap gap-1.5">
+                  {% if not u.is_active %}<span class="pill pill-muted">Deactivated</span>{% else %}<span class="pill pill-up">Active</span>{% endif %}
+                  {% if u.login_locked %}<span class="pill pill-down">{% icon "lock" "size-3" %} Sign-in locked</span>{% endif %}
+                  {% if u.profile.vault_locked %}<span class="pill pill-down">{% icon "lock" "size-3" %} Vault locked</span>{% endif %}
+                </div>
               </td>
               <td class="text-right">
                 <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false">
-                  <button class="btn btn-ghost btn-icon btn-sm" @click="open = !open">{% icon "ellipsis" %}</button>
-                  <div x-show="open" x-cloak x-transition class="card absolute right-0 z-20 mt-1 w-52 p-1.5 text-left">
-                    <button class="nav-link w-full" @click="open=false; $dispatch('open-user')">{% icon "pencil" %} Edit / change role</button>
-                    {% if u.vault_locked %}<button class="nav-link w-full" @click="open=false; $store.toast.show('Vault unlocked for {{ u.name }} — prototype only')">{% icon "lock-open" %} Unlock vault</button>{% endif %}
-                    <button class="nav-link w-full" @click="open=false; $store.toast.show('Password reset link created — prototype only')">{% icon "rotate-ccw" %} Reset password</button>
-                    <button class="nav-link w-full" @click="open=false; $store.toast.show('2FA reset — user must enrol again', 'warn')">{% icon "smartphone" %} Reset 2FA</button>
-                    <div class="my-1 border-t border-line"></div>
-                    <button class="nav-link w-full text-down" @click="open=false; $store.toast.show('User deactivated — prototype only', 'down')">{% icon "circle-x" %} Deactivate</button>
+                  <button class="btn btn-ghost btn-icon btn-sm" @click="open = !open" aria-label="Actions for {{ u.name }}">{% icon "ellipsis" %}</button>
+                  <div x-show="open" x-cloak x-transition class="card absolute right-0 z-20 mt-1 w-56 p-1.5 text-left">
+                    <a href="{% url 'accounts:user_edit' u.pk %}" class="nav-link">{% icon "pencil" %} Edit / change role</a>
+                    {% include "accounts/partials/user_actions.html" with target=u %}
                   </div>
                 </div>
               </td>
@@ -54,7 +59,7 @@
     <div class="card-head"><h2 class="card-title">What each role can do</h2></div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>Permission</th><th class="text-center">Admin</th><th class="text-center">Engineer</th><th class="text-center">Viewer</th></tr></thead>
+        <thead><tr><th>Permission</th>{% for r in role_names %}<th class="text-center">{{ r }}</th>{% endfor %}</tr></thead>
         <tbody>
           {% for label, a, e, v in matrix %}
             <tr>
@@ -70,23 +75,34 @@
   </section>
 </div>
 
-<div x-data="{ open: false }" @open-user.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-  <form data-prototype="User created — temporary password generated" @prototype-submitted="open=false" @click.outside="open=false" class="card w-full max-w-lg p-0">
+{# Add-user modal (re-opens with errors if validation fails) #}
+<div x-data="{ open: {{ open_create|yesno:'true,false' }} }" @open-user.window="open = true" x-show="open" x-cloak
+     class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+  <form method="post" action="{% url 'accounts:user_create' %}" @click.outside="open=false" class="card w-full max-w-lg p-0" novalidate>
+    {% csrf_token %}
     <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add user</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
     <div class="grid gap-4 p-5 sm:grid-cols-2">
-      <div><label class="field-label">Full name</label><input class="input" required></div>
-      <div><label class="field-label">Username</label><input class="input mono" required></div>
-      <div class="sm:col-span-2"><label class="field-label">Email</label><input type="email" class="input"></div>
-      <div class="sm:col-span-2"><label class="field-label">Role</label>
-        <div class="grid grid-cols-3 gap-2" x-data="{ role: 'Engineer' }">
-          <template x-for="r in ['Admin', 'Engineer', 'Viewer']"><button type="button" class="rounded-lg border p-2.5 text-[13px] font-medium" :class="role === r ? 'border-accent bg-up-soft' : 'border-line bg-surface-2'" @click="role = r" x-text="r"></button></template>
+      <div class="sm:col-span-2">{% include "components/form_errors.html" with form=create_form %}</div>
+      {% include "components/field.html" with field=create_form.full_name %}
+      {% include "components/field.html" with field=create_form.username %}
+      {% include "components/field.html" with field=create_form.email cls="sm:col-span-2" %}
+      <div class="sm:col-span-2" x-data="{ role: '{{ create_form.role.value|default:'Engineer' }}' }">
+        <span class="field-label">Role</span>
+        <input type="hidden" name="role" :value="role">
+        <div class="grid grid-cols-3 gap-2">
+          {% for r in role_names %}
+            <button type="button" class="rounded-lg border p-2.5 text-[13px] font-medium" :class="role === '{{ r }}' ? 'border-accent bg-up-soft' : 'border-line bg-surface-2'" @click="role = '{{ r }}'">{{ r }}</button>
+          {% endfor %}
         </div>
+        {% for e in create_form.role.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
       </div>
       <div class="rounded-xl border border-line bg-surface-2 p-3 text-xs text-muted sm:col-span-2">
-        A one-time temporary password is shown once after saving. On first login the user must change it, set up 2FA and create a reveal code.
+        A temporary password is shown <b class="text-ink-2">once</b> after saving. Give it to the user in person or by phone. At first sign-in they choose their own password and set up two-factor.
       </div>
     </div>
     <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Create user</button></div>
   </form>
 </div>
+
+{% if temp_password %}{% include "accounts/partials/temp_password.html" with t=temp_password %}{% endif %}
 {% endblock %}

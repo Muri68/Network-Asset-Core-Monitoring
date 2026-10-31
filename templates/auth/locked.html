@@ -1,0 +1,8 @@
+{% extends "auth/base_auth.html" %}
+{% block title %}Locked{% endblock %}
+{% block content %}
+<span class="icon-chip size-12 rounded-xl border-down/30 bg-down-soft text-down">{% icon "lock" "size-5" %}</span>
+<h1 class="mt-5 text-2xl font-semibold tracking-tight">Sign-in temporarily locked</h1>
+<p class="mt-2 text-[13px] text-muted">Too many wrong passwords for this account from this computer. Try again in 30 minutes, or ask an Admin to unlock it from the Users page.</p>
+<a href="{% url 'accounts:login' %}" class="btn mt-8 h-11 w-full">Back to sign in</a>
+{% endblock %}

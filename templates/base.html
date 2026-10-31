@@ -128,11 +128,13 @@
             {% icon "chevron-down" "size-3.5 text-muted" %}
           </button>
           <div x-show="open" x-cloak x-transition.origin.top.right class="card absolute right-0 mt-2 w-56 p-1.5">
-            <a href="{% url 'ui:profile' %}" class="nav-link">{% icon "user" %} My profile</a>
-            <a href="{% url 'ui:profile' %}#reveal-code" class="nav-link">{% icon "key-round" %} Reveal code</a>
-            <a href="{% url 'ui:settings' %}" class="nav-link">{% icon "settings" %} Settings</a>
+            <a href="{% url 'accounts:profile' %}" class="nav-link">{% icon "user" %} My profile</a>
+            {% if can.vault %}<a href="{% url 'accounts:profile' %}#reveal-code" class="nav-link">{% icon "key-round" %} Reveal code</a>{% endif %}
+            {% if can.settings %}<a href="{% url 'ui:settings' %}" class="nav-link">{% icon "settings" %} Settings</a>{% endif %}
             <div class="my-1 border-t border-line"></div>
-            <a href="{% url 'ui:login' %}" class="nav-link text-down hover:text-down">{% icon "log-out" %} Sign out</a>
+            <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+              <button class="nav-link w-full text-down hover:text-down">{% icon "log-out" %} Sign out</button>
+            </form>
           </div>
         </div>
       </div>
@@ -152,13 +154,14 @@
     </main>
 
     <footer class="mx-auto max-w-[1600px] px-4 pb-8 text-[11px] text-faint sm:px-6 lg:px-8">
-      NetCore · UI prototype with sample data — nothing on these pages is saved.
+      NetCore · Sign-in, users and roles are live. Other pages still show sample data and don't save anything.
     </footer>
   </div>
 
   {% include "partials/command_palette.html" %}
 
-  {# ---------------- Toasts ---------------- #}
+  {# ---------------- Toasts (also shows Django messages) ---------------- #}
+  {% include "partials/messages.html" %}
   <div class="pointer-events-none fixed right-4 bottom-4 z-[70] flex w-80 flex-col gap-2" x-data>
     <template x-for="t in $store.toast.items" :key="t.id">
       <div class="card pointer-events-auto flex items-start gap-3 p-3.5" x-transition>

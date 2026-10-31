@@ -7,8 +7,6 @@ app_name = "ui"
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("dashboard/live/", views.dashboard_live, name="dashboard_live"),
-    path("login/", views.login, name="login"),
-    path("login/verify/", views.login_2fa, name="login_2fa"),
     # Monitoring
     path("monitors/", views.monitors, name="monitors"),
     path("monitors/new/", views.monitor_form, name="monitor_new"),
@@ -36,8 +34,6 @@ urlpatterns = [
     path("vault/log/", views.reveal_log, name="reveal_log"),
     path("audit/", views.audit, name="audit"),
     # Administration
-    path("users/", views.users, name="users"),
-    path("profile/", views.profile, name="profile"),
     path("data/", views.data, name="data"),
     path("data/import/preview/", views.import_preview, name="import_preview"),
     path("settings/", views.settings_page, name="settings"),

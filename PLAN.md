@@ -281,6 +281,12 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - pytest + factory_boy setup, CI workflow file (GitHub Actions, if you use GitHub)
 - **Done when:** `docker compose up` shows a styled login page; tests run green.
 
+### Phase 1a — Authentication & authorization 🔍 (built 2026-10-31, awaiting owner's manual check)
+- Done: custom `User` + `Profile`, roles as Groups (migration), capability map in `apps/accounts/roles.py`, `capability_required` on every restricted view, buttons/nav/search hidden by role, multi-step sign-in (password → forced new password → TOTP setup with QR + 10 backup codes / TOTP or backup code → reveal-code setup for vault roles), axes lockout, 30-min idle timeout (dashboard polling doesn't count), user management (create with one-time temp password, edit role, deactivate, reset password, reset 2FA, unlock sign-in, unlock vault, last-Admin guard), profile (password, reveal code, backup codes), `bootstrap_admin`.
+- Checks: 176 pytest tests (every page × every role, full sign-in journeys, lockout, idle timeout, last-Admin rules), ruff clean, scripted browser walk-through.
+- Decisions taken: **SQLite for now** (owner, 2026-10-31; PostgreSQL before the audit trigger/IPAM work). Axes lockout **expires after 30 min** in addition to Admin unlock, so a single Admin can't be permanently locked out. `django-axes` pinned to 8.3.1 (9.0.0 was one day old).
+- Deferred to Phase 1b: audit framework (the next step).
+
 ### Phase 1 — Accounts, roles, security & audit
 - Roles (Groups via data migration), `RoleRequiredMixin`, URL-access test harness
 - Login, forced password change, **mandatory TOTP 2FA** + backup codes, axes lockout, idle timeout

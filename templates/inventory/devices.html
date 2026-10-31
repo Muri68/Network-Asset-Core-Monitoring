@@ -5,9 +5,9 @@
 {% block page_title %}Device inventory{% endblock %}
 {% block page_subtitle %}{{ total }} assets — servers, switches, firewalls, access control, NVRs, cameras and more.{% endblock %}
 {% block page_actions %}
-  <a href="{% url 'ui:data' %}" class="btn">{% icon "upload" %} Import</a>
-  <a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>
-  <a href="{% url 'ui:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>
+  {% if can.import %}<a href="{% url 'ui:data' %}" class="btn">{% icon "upload" %} Import</a>{% endif %}
+  {% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}
+  {% if can.edit %}<a href="{% url 'ui:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -65,7 +65,7 @@
     <div class="flex gap-1"><button class="btn btn-sm" disabled>{% icon "chevron-left" "size-3.5" %}</button><button class="btn btn-sm" disabled>{% icon "chevron-right" "size-3.5" %}</button></div>
   </div>
   {% else %}
-    {% url 'ui:device_new' as new_url %}
+    {% if can.edit %}{% url 'ui:device_new' as new_url %}{% endif %}
     {% include "components/empty_state.html" with icon="server" title="No devices found" text="Nothing matches your filters. Clear them or add a new device." action_url=new_url action_label="Add device" %}
   {% endif %}
 </section>

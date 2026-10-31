@@ -4,7 +4,7 @@
 {% block heading %}VLANs{% endblock %}
 {% block page_title %}VLANs{% endblock %}
 {% block page_subtitle %}{{ vlans|length }} VLANs used across switches, firewall trunks and access ports.{% endblock %}
-{% block page_actions %}<button class="btn btn-primary" x-data @click="$dispatch('open-vlan')">{% icon "plus" %} Add VLAN</button>{% endblock %}
+{% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-vlan')">{% icon "plus" %} Add VLAN</button>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -21,6 +21,7 @@
   {% endfor %}
 </div>
 
+{% if can.edit %}
 <div x-data="{ open: false }" @open-vlan.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
   <form data-prototype="VLAN created" @prototype-submitted="open=false" @click.outside="open=false" class="card w-full max-w-md p-0">
     <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add VLAN</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
@@ -32,4 +33,5 @@
     <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save</button></div>
   </form>
 </div>
+{% endif %}
 {% endblock %}
