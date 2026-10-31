@@ -36,8 +36,10 @@ INSTALLED_APPS = [
     "django_otp.plugins.otp_static",
     "axes",
     "django_tailwind_cli",
+    "apps.core",
     "apps.accounts",
     "apps.audit",
+    "apps.inventory",
     "apps.ui",
 ]
 

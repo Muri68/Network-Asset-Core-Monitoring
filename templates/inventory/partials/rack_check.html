@@ -1,0 +1,9 @@
+{% if not rack %}
+  <p class="text-xs text-muted">Not racked — the device sits elsewhere at its location.</p>
+{% elif not position %}
+  <p class="text-xs text-muted">Choose the starting U (the lowest unit the device occupies).</p>
+{% elif problem %}
+  <div class="flex items-start gap-2 rounded-lg bg-down-soft px-3 py-2 text-xs text-down">{% icon "triangle-alert" "size-3.5 mt-0.5 shrink-0" %}<span>{{ problem }}</span></div>
+{% else %}
+  <div class="flex items-center gap-2 rounded-lg bg-up-soft px-3 py-2 text-xs text-up">{% icon "circle-check" "size-3.5" %} U{{ position }}{% if height > 1 %}–U{{ top }}{% endif %} is free in {{ rack.name }}</div>
+{% endif %}

@@ -14,11 +14,6 @@ urlpatterns = [
     path("incidents/", views.incidents, name="incidents"),
     path("maintenance/", views.maintenance, name="maintenance"),
     # Infrastructure
-    path("devices/", views.devices, name="devices"),
-    path("devices/new/", views.device_form, name="device_new"),
-    path("devices/<int:pk>/", views.device_detail, name="device_detail"),
-    path("racks/", views.racks, name="racks"),
-    path("racks/<int:pk>/", views.rack_detail, name="rack_detail"),
     path("connections/", views.connections, name="connections"),
     path("connections/<int:pk>/trace/", views.connection_trace, name="connection_trace"),
     path("vlans/", views.vlans, name="vlans"),

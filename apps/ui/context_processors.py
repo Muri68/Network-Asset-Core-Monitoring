@@ -1,6 +1,7 @@
 from django.urls import reverse
 
 from apps.accounts.roles import can
+from apps.inventory.models import Device
 
 from . import fake_data as fd
 
@@ -13,8 +14,8 @@ NAV = [
         ("maintenance", "Maintenance", "wrench", "ui:maintenance", "view"),
     ]),
     ("Infrastructure", [
-        ("devices", "Devices", "server", "ui:devices", "view"),
-        ("racks", "Racks", "layers", "ui:racks", "view"),
+        ("devices", "Devices", "server", "inventory:devices", "view"),
+        ("racks", "Racks", "layers", "inventory:racks", "view"),
         ("connections", "Connections", "cable", "ui:connections", "view"),
         ("vlans", "VLANs", "hash", "ui:vlans", "view"),
     ]),
@@ -47,8 +48,9 @@ def _nav_for(user):
 def _search_index(user, nav):
     items = [{"kind": "Page", "label": label, "sub": section, "url": reverse(url), "icon": icon}
              for section, links in nav for _key, label, icon, url in links]
-    items += [{"kind": "Device", "label": d["name"], "sub": f"{d['model']} · {d['mgmt_ip'] or 'no IP'}",
-               "url": reverse("ui:device_detail", args=[d["id"]]), "icon": d["icon"]} for d in fd.DEVICES]
+    devices = Device.objects.exclude(status=Device.Status.RETIRED).select_related("device_model")
+    items += [{"kind": "Device", "label": d.name, "sub": f"{d.device_model.name} · {d.mgmt_ip or 'no IP'}",
+               "url": d.get_absolute_url(), "icon": d.icon} for d in devices]
     items += [{"kind": "Monitor", "label": m["name"], "sub": m["target"],
                "url": reverse("ui:monitor_detail", args=[m["id"]]), "icon": "activity"} for m in fd.MONITORS]
     items += [{"kind": "Prefix", "label": p["cidr"], "sub": p["desc"],

@@ -1,12 +1,17 @@
 {% extends "base.html" %}
 {% block title %}{{ rack.name }}{% endblock %}
-{% block crumb %}Infrastructure / Racks{% endblock %}
+{% block crumb %}Infrastructure / Racks · {{ rack.location }}{% endblock %}
 {% block heading %}{{ rack.name }}{% endblock %}
 {% block page_title %}{{ rack.name }}{% endblock %}
-{% block page_subtitle %}{{ rack.location }} · {{ rack.height }}U · {{ rack.used }}U used ({{ rack.pct }}%){% endblock %}
+{% block page_subtitle %}{{ rack.location }} · {{ rack.height_u }}U · front {{ front.used }}U used ({{ front.pct }}%) · rear {{ rear.used }}U used{% if rack.notes %} · {{ rack.notes }}{% endif %}{% endblock %}
 {% block page_actions %}
-  <div class="flex gap-1">{% for r in racks %}<a href="{% url 'ui:rack_detail' r.id %}" class="chip {% if r.id == rack.id %}chip-active{% endif %}">Rack {{ r.id }}</a>{% endfor %}</div>
-  {% if can.edit %}<a href="{% url 'ui:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>{% endif %}
+  {% if siblings|length > 1 %}
+    <div class="flex flex-wrap gap-1">{% for r in siblings %}<a href="{% url 'inventory:rack_detail' r.pk %}" class="chip {% if r.pk == rack.pk %}chip-active{% endif %}">{{ r.name }}</a>{% endfor %}</div>
+  {% endif %}
+  {% if can.edit %}
+    <a href="{% url 'inventory:rack_edit' rack.pk %}" class="btn">{% icon "pencil" %} Edit</a>
+    <a href="{% url 'inventory:device_new' %}?rack={{ rack.pk }}" class="btn btn-primary">{% icon "plus" %} Add device</a>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -17,36 +22,44 @@
       <div class="flex gap-1"><button class="chip h-7" :class="face==='front' && 'chip-active'" @click="face='front'">Front</button><button class="chip h-7" :class="face==='rear' && 'chip-active'" @click="face='rear'">Rear</button></div>
     </div>
     <div class="card-body">
-      <div x-show="face==='front'">{% include "inventory/partials/rack_elevation.html" %}</div>
-      <div x-show="face==='rear'" x-cloak class="rack-frame grid place-items-center text-center text-xs text-muted" style="height: {{ rack.px|add:16 }}px">
-        <div>{% icon "layers" "size-6 mx-auto mb-2 text-faint" %}No rear-mounted devices<br>(PDUs and cable managers go here)</div>
-      </div>
+      <div x-show="face==='front'">{% include "inventory/partials/rack_elevation.html" with rack=front clickable=can.edit %}</div>
+      <div x-show="face==='rear'" x-cloak>{% include "inventory/partials/rack_elevation.html" with rack=rear clickable=can.edit %}</div>
+      {% if can.edit %}<p class="hint mt-2">Hover an empty unit to add a device there.</p>{% endif %}
     </div>
   </section>
 
   <section class="card self-start lg:col-span-7 xl:col-span-8">
-    <div class="card-head"><h2 class="card-title">Devices in this rack</h2></div>
+    <div class="card-head"><h2 class="card-title">Devices in this rack</h2><span class="pill pill-muted">{{ devices|length }}</span></div>
+    {% if devices %}
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>U</th><th>Device</th><th class="hidden md:table-cell">Model</th><th>Mgmt IP</th><th>Status</th></tr></thead>
+        <thead><tr><th>U</th><th>Device</th><th class="hidden md:table-cell">Model</th><th>Mgmt IP</th><th class="hidden sm:table-cell">Face</th><th>Status</th></tr></thead>
         <tbody>
-          {% for d in rack.items %}
-            <tr class="cursor-pointer" onclick="window.location='{% url 'ui:device_detail' d.id %}'">
-              <td class="mono text-muted">U{{ d.position_u }}{% if d.height_u > 1 %}–{{ d.top_u }}{% endif %}</td>
-              <td><span class="flex items-center gap-2.5"><span class="rack-device rk-{{ d.type }} static grid size-7 place-items-center p-0">{% icon d.icon "size-3.5" %}</span><span class="font-medium">{{ d.name }}</span></span></td>
-              <td class="hidden text-ink-2 md:table-cell">{{ d.manufacturer }} {{ d.model }}</td>
+          {% for d in devices %}
+            <tr class="cursor-pointer" onclick="window.location='{{ d.get_absolute_url }}'">
+              <td class="mono text-muted whitespace-nowrap">U{{ d.position_u }}{% if d.height_u > 1 %}–{{ d.top_u }}{% endif %}</td>
+              <td><a href="{{ d.get_absolute_url }}" class="flex items-center gap-2.5"><span class="rack-device rk-{{ d.device_type }} static grid size-7 place-items-center p-0">{% icon d.icon "size-3.5" %}</span><span class="font-medium">{{ d.name }}</span></a></td>
+              <td class="hidden text-ink-2 md:table-cell">{{ d.device_model }}</td>
               <td class="mono">{{ d.mgmt_ip|default:"—" }}</td>
+              <td class="hidden text-xs text-muted sm:table-cell">{{ d.get_face_display }}</td>
               <td>{% include "components/status_pill.html" with status=d.status %}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% else %}
+      {% include "components/empty_state.html" with icon="layers" title="Empty rack" text="Add a device, or hover an empty unit in the elevation." %}
+    {% endif %}
     <div class="grid gap-3 border-t border-line p-5 sm:grid-cols-3">
-      <div class="inset p-3"><div class="text-xs text-muted">Free space</div><div class="mt-1 text-lg font-semibold">{{ rack.free }}U</div></div>
-      <div class="inset p-3"><div class="text-xs text-muted">Power feed</div><div class="mt-1 text-lg font-semibold">A + B</div></div>
-      <div class="inset p-3"><div class="text-xs text-muted">Location</div><div class="mt-1 text-lg font-semibold">{{ rack.location }}</div></div>
+      <div class="inset p-3"><div class="text-xs text-muted">Free (front)</div><div class="mt-1 text-lg font-semibold">{{ front.free_units|length }}U</div></div>
+      <div class="inset p-3"><div class="text-xs text-muted">Free (rear)</div><div class="mt-1 text-lg font-semibold">{{ rear.free_units|length }}U</div></div>
+      <div class="inset p-3"><div class="text-xs text-muted">Location</div><div class="mt-1 truncate text-lg font-semibold">{{ rack.location }}</div></div>
     </div>
+    {% if can.edit and not devices %}
+      <form method="post" action="{% url 'inventory:rack_delete' rack.pk %}" class="border-t border-line px-5 py-3 text-right" onsubmit="return confirm('Delete {{ rack.name|escapejs }}?')">{% csrf_token %}
+        <button class="btn btn-ghost btn-sm text-down">{% icon "trash-2" "size-3.5" %} Delete this empty rack</button></form>
+    {% endif %}
   </section>
 </div>
 {% endblock %}

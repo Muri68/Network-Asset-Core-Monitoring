@@ -1,18 +1,28 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block title %}Devices{% endblock %}
 {% block crumb %}Infrastructure{% endblock %}
 {% block heading %}Devices{% endblock %}
 {% block page_title %}Device inventory{% endblock %}
-{% block page_subtitle %}{{ total }} assets — servers, switches, firewalls, access control, NVRs, cameras and more.{% endblock %}
+{% block page_subtitle %}{{ total }} device{{ total|pluralize }} — servers, switches, firewalls, access control, NVRs, cameras and more.{% endblock %}
 {% block page_actions %}
-  {% if can.import %}<a href="{% url 'ui:data' %}" class="btn">{% icon "upload" %} Import</a>{% endif %}
-  {% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}
-  {% if can.edit %}<a href="{% url 'ui:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>{% endif %}
+  {% if can.edit %}<a href="{% url 'inventory:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>{% endif %}
 {% endblock %}
 
 {% block content %}
+{% if not total %}
+  <section class="card">
+    {% if not has_locations %}
+      {% if can.edit %}{% url 'inventory:racks' as start_url %}{% endif %}
+      {% include "components/empty_state.html" with icon="map-pin" title="Start by adding a location" text="Devices belong to a location (e.g. “HQ — Server Room”). Add a location and your racks first, then add devices." action_url=start_url action_label="Add a location" %}
+    {% else %}
+      {% if can.edit %}{% url 'inventory:device_new' as new_url %}{% endif %}
+      {% include "components/empty_state.html" with icon="server" title="No devices yet" text="Add your first firewall, switch or server." action_url=new_url action_label="Add device" %}
+    {% endif %}
+  </section>
+{% else %}
 <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
-  <a href="?{% if status %}status={{ status }}{% endif %}" class="chip {% if not dtype %}chip-active{% endif %}">All <span class="text-muted">{{ total }}</span></a>
+  <a href="?{% if status %}status={{ status }}{% endif %}" class="chip {% if not dtype %}chip-active{% endif %}">All <span class="text-muted">{{ shown_total }}</span></a>
   {% for key, label, icon_name, count in types %}
     {% if count %}
       <a href="?type={{ key }}{% if status %}&status={{ status }}{% endif %}" class="chip {% if dtype == key %}chip-active{% endif %}">{% icon icon_name "size-3.5" %}{{ label }} <span class="text-muted">{{ count }}</span></a>
@@ -25,48 +35,57 @@
     {% if dtype %}<input type="hidden" name="type" value="{{ dtype }}">{% endif %}
     <div class="relative min-w-56 flex-1">
       <span class="pointer-events-none absolute top-2.5 left-3 text-faint">{% icon "search" %}</span>
-      <input name="q" value="{{ q }}" class="input pl-9" placeholder="Search by name, IP or model…">
+      <input name="q" value="{{ q }}" class="input pl-9" placeholder="Search name, IP, MAC, serial, asset tag or model…">
     </div>
-    <select name="status" class="input w-auto" onchange="this.form.submit()">
-      <option value="">Any status</option>
-      <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
-      <option value="spare" {% if status == "spare" %}selected{% endif %}>Spare</option>
-      <option value="faulty" {% if status == "faulty" %}selected{% endif %}>Faulty</option>
-      <option value="retired" {% if status == "retired" %}selected{% endif %}>Retired</option>
+    {% if locations|length > 1 %}
+      <select name="location" class="input w-auto" onchange="this.form.submit()" aria-label="Location">
+        <option value="">All locations</option>
+        {% for l in locations %}<option value="{{ l.pk }}" {% if location == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+      </select>
+    {% endif %}
+    <select name="status" class="input w-auto" onchange="this.form.submit()" aria-label="Status">
+      <option value="">In use (not retired)</option>
+      {% for value, label in statuses %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      <option value="all" {% if status == "all" %}selected{% endif %}>All, including retired</option>
     </select>
   </form>
 
   {% if devices %}
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th>Device</th><th class="hidden md:table-cell">Type</th><th>Management IP</th><th class="hidden lg:table-cell">Location</th><th>Status</th><th class="hidden sm:table-cell">Monitor</th><th class="hidden xl:table-cell">Warranty</th></tr></thead>
+      <thead><tr><th>Device</th><th class="hidden md:table-cell">Type</th><th>Management IP</th><th class="hidden lg:table-cell">Location</th><th>Status</th><th class="hidden xl:table-cell">Warranty</th></tr></thead>
       <tbody>
         {% for d in devices %}
-          <tr class="cursor-pointer" onclick="window.location='{% url 'ui:device_detail' d.id %}'">
+          <tr class="cursor-pointer" onclick="window.location='{{ d.get_absolute_url }}'">
             <td>
-              <div class="flex items-center gap-3">
+              <a href="{{ d.get_absolute_url }}" class="flex items-center gap-3">
                 <span class="icon-chip">{% icon d.icon "size-4" %}</span>
-                <div class="min-w-0"><div class="font-medium">{{ d.name }}</div><div class="truncate text-xs text-muted">{{ d.manufacturer }} {{ d.model }}</div></div>
-              </div>
+                <div class="min-w-0"><div class="font-medium">{{ d.name }}</div><div class="truncate text-xs text-muted">{{ d.device_model }}</div></div>
+              </a>
             </td>
             <td class="hidden text-ink-2 md:table-cell">{{ d.type_label }}</td>
             <td class="mono">{{ d.mgmt_ip|default:"—" }}</td>
-            <td class="hidden text-xs lg:table-cell">{% if d.rack %}<span class="text-ink-2">{{ d.rack }}</span><span class="text-muted"> · U{{ d.position_u }}{% if d.height_u > 1 %}–{{ d.position_u|add:d.height_u|add:-1 }}{% endif %}</span>{% else %}<span class="text-muted">{{ d.location }}</span>{% endif %}</td>
+            <td class="hidden text-xs lg:table-cell">{% if d.rack %}<span class="text-ink-2">{{ d.rack }}</span><span class="text-muted"> · U{{ d.position_u }}{% if d.height_u > 1 %}–{{ d.top_u }}{% endif %}</span>{% else %}<span class="text-muted">{{ d.location }}</span>{% endif %}</td>
             <td>{% include "components/status_pill.html" with status=d.status %}</td>
-            <td class="hidden sm:table-cell">{% if d.monitor %}{% include "components/status_pill.html" with status=d.monitor.status %}{% else %}<span class="text-xs text-faint">Not monitored</span>{% endif %}</td>
-            <td class="hidden text-xs xl:table-cell text-muted">{{ d.warranty_expiry|date:"d M Y" }}</td>
+            <td class="hidden text-xs xl:table-cell">{% if d.warranty_expiry %}<span class="text-{{ d.warranty_days|days_tone }}">{{ d.warranty_expiry|date:"d M Y" }}</span>{% else %}<span class="text-faint">—</span>{% endif %}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <div class="flex items-center justify-between border-t border-line px-4 py-3 text-xs text-muted">
-    <span>Showing {{ devices|length }} of {{ total }}</span>
-    <div class="flex gap-1"><button class="btn btn-sm" disabled>{% icon "chevron-left" "size-3.5" %}</button><button class="btn btn-sm" disabled>{% icon "chevron-right" "size-3.5" %}</button></div>
+  <div class="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3 text-xs text-muted">
+    <span>Showing {{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }}{% if retired_count and status != "all" and status != "retired" %} · <a class="underline hover:text-ink" href="?status=retired">{{ retired_count }} retired</a>{% endif %}</span>
+    {% if page.paginator.num_pages > 1 %}
+    <div class="flex gap-1">
+      {% if page.has_previous %}<a class="btn btn-sm" href="?{% if query %}{{ query }}&{% endif %}page={{ page.previous_page_number }}">{% icon "chevron-left" "size-3.5" %}</a>{% endif %}
+      <span class="btn btn-sm pointer-events-none">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?{% if query %}{{ query }}&{% endif %}page={{ page.next_page_number }}">{% icon "chevron-right" "size-3.5" %}</a>{% endif %}
+    </div>
+    {% endif %}
   </div>
   {% else %}
-    {% if can.edit %}{% url 'ui:device_new' as new_url %}{% endif %}
-    {% include "components/empty_state.html" with icon="server" title="No devices found" text="Nothing matches your filters. Clear them or add a new device." action_url=new_url action_label="Add device" %}
+    {% include "components/empty_state.html" with icon="search" title="No devices match" text="Try another type, status or search term." %}
   {% endif %}
 </section>
+{% endif %}
 {% endblock %}

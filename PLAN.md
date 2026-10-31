@@ -304,7 +304,13 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - **Audit framework**: middleware context, signal registration, append-only trigger, audit log viewer with filters
 - **Done when:** Admin can create an Engineer and Viewer; each sees only what they should; every login/change appears in the audit log.
 
-### Phase 2 — Inventory & racks
+### Phase 2 — Inventory & racks ✅ (approved by owner 2026-11-01)
+- Done: `apps/core.TrackedModel` (created/updated at/by), `apps/inventory` with Location, Rack, Manufacturer, DeviceModel (port template stored for Phase 3), Device, DeviceAttribute — all tracked in the audit log with readable before→after values (names, not IDs).
+- Rules: fits inside the rack, no overlap on the same face, rack must be in the device's location (the form sets it automatically), no dependency loops, case-insensitive unique device names, unique management IP and asset tag, MAC normalised.
+- Pages: device list (search incl. IP/MAC/serial, type chips, location/status filters, retired hidden by default, pagination), device form (manufacturer/model typed and created on the fly, live rack-position check, extra attributes), device detail (details, dependencies, rack preview, history from the audit log; Ports/Monitors/Credentials tabs say which phase they arrive in), locations & racks page, rack page (front/rear elevations, click an empty U to add a device there), retire (frees rack space) and Admin-only permanent delete (type the name to confirm). Dashboard device count, type chart and warranty list use real devices.
+- New capability `delete_hard` (Admin). Optional `manage.py load_demo_inventory` loads the 30 sample devices into an empty inventory.
+- Deferred: a page to edit device models/port templates comes with ports in Phase 3; `mgmt_ip` becomes a link to IPAM in Phase 4.
+- Checks: 274 pytest tests, ruff clean, browser walk-through on the demo inventory.
 - Location, Rack, Manufacturer, DeviceModel (with port templates), Device, DeviceAttribute
 - CRUD with filters/search, retire vs delete, rack U-overlap validation
 - Rack elevation view, device detail page (tabs scaffolded)

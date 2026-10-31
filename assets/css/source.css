@@ -382,3 +382,11 @@
 .input[aria-invalid="true"] {
   border-color: var(--down);
 }
+
+/* Rack colours for types not in the prototype */
+@layer components {
+  .rk-camera { @apply border-pending/40 bg-pending-soft text-pending; }
+  .rk-access_point { @apply border-maint/40 bg-maint-soft text-maint; }
+  .rk-pdu { @apply border-paused/40 bg-paused-soft text-ink-2; }
+  .rk-other { @apply border-line-strong bg-surface-3 text-ink-2; }
+}

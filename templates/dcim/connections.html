@@ -29,9 +29,9 @@
       <tbody>
         {% for c in connections %}
           <tr>
-            <td><a href="{% url 'ui:device_detail' c.a_device.id %}" class="hover:underline"><span class="font-medium">{{ c.a_device.name }}</span></a><div class="mono text-xs text-muted">{{ c.a_port }}</div></td>
+            <td><a href="{% url 'inventory:devices' %}?status=all&q={{ c.a_device.name|urlencode }}" class="hover:underline"><span class="font-medium">{{ c.a_device.name }}</span></a><div class="mono text-xs text-muted">{{ c.a_port }}</div></td>
             <td class="w-8 text-faint">{% icon "arrow-left-right" "size-4" %}</td>
-            <td>{% if c.b_device %}<a href="{% url 'ui:device_detail' c.b_device.id %}" class="hover:underline"><span class="font-medium">{{ c.b_device.name }}</span></a><div class="mono text-xs text-muted">{{ c.b_port }}</div>
+            <td>{% if c.b_device %}<a href="{% url 'inventory:devices' %}?status=all&q={{ c.b_device.name|urlencode }}" class="hover:underline"><span class="font-medium">{{ c.b_device.name }}</span></a><div class="mono text-xs text-muted">{{ c.b_port }}</div>
                 {% else %}<span class="flex items-center gap-1.5 text-ink-2">{% icon "globe" "size-3.5 text-muted" %}{{ c.b_external }}</span>{% endif %}</td>
             <td class="text-ink-2">{{ c.function }}{% if c.remark %}<div class="text-xs text-muted">{{ c.remark }}</div>{% endif %}</td>
             <td class="hidden md:table-cell">{% if c.mode == "trunk" %}<span class="pill pill-maint">Trunk</span>{% elif c.mode == "access" %}<span class="pill pill-muted">Access</span>{% else %}<span class="pill pill-warn">Routed</span>{% endif %}</td>

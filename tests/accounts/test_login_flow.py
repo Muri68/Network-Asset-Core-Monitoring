@@ -123,7 +123,7 @@ class TestTwoFactor:
         assert client.get(reverse("accounts:login_2fa")).url == LOGIN
 
     def test_next_url_is_kept(self, client, viewer):
-        target = reverse("ui:devices")
+        target = reverse("inventory:devices")
         password_step(client, viewer.username, next_url=target)
         device = services.confirmed_totp(viewer)
         assert client.post(reverse("accounts:login_2fa"), {"token": token_for(device)}).url == target

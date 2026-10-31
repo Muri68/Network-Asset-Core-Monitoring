@@ -9,7 +9,7 @@
     {% if h.external %}
       <div class="inset shrink-0 border-dashed px-3.5 py-3"><div class="flex items-center gap-2 text-[13px] font-medium">{% icon "globe" "size-4 text-muted" %}External</div><div class="mt-1 max-w-48 text-xs text-muted">{{ h.external }}</div></div>
     {% else %}
-      <a href="{% url 'ui:device_detail' h.device.id %}" class="inset shrink-0 px-3.5 py-3 hover:border-line-strong">
+      <a href="{% url 'inventory:devices' %}?status=all&q={{ h.device.name|urlencode }}" class="inset shrink-0 px-3.5 py-3 hover:border-line-strong">
         <div class="flex items-center gap-2 text-[13px] font-medium">{% icon h.device.icon "size-4 text-muted" %}{{ h.device.name }}</div>
         <div class="mono mt-1 text-xs text-up">{{ h.port }}</div>
       </a>

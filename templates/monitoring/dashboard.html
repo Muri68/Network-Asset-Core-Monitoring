@@ -137,7 +137,7 @@
     <section class="card">
       <div class="card-head">
         <h2 class="card-title">Inventory by type</h2>
-        <a href="{% url 'ui:devices' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+        <a href="{% url 'inventory:devices' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
       </div>
       <div class="card-body">
         <div class="relative mx-auto size-44">
@@ -203,9 +203,9 @@
       <ul class="card-body space-y-1">
         {% for d in warranty %}
           <li>
-            <a href="{% url 'ui:device_detail' d.id %}" class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface-2">
+            <a href="{{ d.get_absolute_url }}" class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface-2">
               <span class="icon-chip size-7">{% icon d.icon "size-3.5" %}</span>
-              <span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium">{{ d.name }}</span><span class="block truncate text-[11px] text-muted">{{ d.model }}</span></span>
+              <span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium">{{ d.name }}</span><span class="block truncate text-[11px] text-muted">{{ d.device_model.name }}</span></span>
               <span class="text-xs font-semibold tabular-nums text-{{ d.warranty_days|days_tone }}">{% if d.warranty_days < 0 %}Expired{% else %}{{ d.warranty_days }}d{% endif %}</span>
             </a>
           </li>

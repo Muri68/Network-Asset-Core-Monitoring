@@ -12,28 +12,32 @@
       <div class="flex flex-wrap items-center gap-2">
         <h1 class="text-xl font-semibold tracking-tight">{{ d.name }}</h1>
         {% include "components/status_pill.html" with status=d.status %}
-        {% for m in monitors|slice:":1" %}{% include "components/status_pill.html" with status=m.status %}{% endfor %}
       </div>
-      <div class="mt-1 text-[13px] text-muted">{{ d.manufacturer }} {{ d.model }} · {{ d.type_label }}</div>
+      <div class="mt-1 text-[13px] text-muted">{{ d.device_model }} · {{ d.type_label }}</div>
       <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
-        <span class="flex items-center gap-1.5 text-muted">{% icon "globe" "size-3.5" %}<span class="mono text-ink">{{ d.mgmt_ip|default:"No IP" }}</span></span>
-        {% if d.rack %}<a href="{% url 'ui:rack_detail' d.rack_id %}" class="flex items-center gap-1.5 text-muted hover:text-ink">{% icon "layers" "size-3.5" %}<span class="text-ink">{{ d.rack }}</span> · U{{ d.position_u }}</a>{% endif %}
+        <span class="flex items-center gap-1.5 text-muted">{% icon "globe" "size-3.5" %}<span class="mono text-ink">{{ d.mgmt_ip|default:"No management IP" }}</span></span>
+        {% if d.rack %}<a href="{{ d.rack.get_absolute_url }}" class="flex items-center gap-1.5 text-muted hover:text-ink">{% icon "layers" "size-3.5" %}<span class="text-ink">{{ d.rack }}</span> · U{{ d.position_u }}{% if d.height_u > 1 %}–{{ d.top_u }}{% endif %}</a>{% endif %}
         <span class="flex items-center gap-1.5 text-muted">{% icon "map-pin" "size-3.5" %}<span class="text-ink">{{ d.location }}</span></span>
-        {% if parent %}<a href="{% url 'ui:device_detail' parent.id %}" class="flex items-center gap-1.5 text-muted hover:text-ink">{% icon "git-branch" "size-3.5" %}Behind <span class="text-ink">{{ parent.name }}</span></a>{% endif %}
+        {% if d.parent %}<a href="{{ d.parent.get_absolute_url }}" class="flex items-center gap-1.5 text-muted hover:text-ink">{% icon "git-branch" "size-3.5" %}Behind <span class="text-ink">{{ d.parent }}</span></a>{% endif %}
       </div>
     </div>
-    <div class="flex flex-wrap gap-2" x-data>
+    <div class="flex flex-wrap gap-2">
       {% if d.mgmt_ip %}<a href="https://{{ d.mgmt_ip }}" target="_blank" rel="noopener" class="btn">{% icon "external-link" %} Open web UI</a>{% endif %}
       {% if can.edit %}
-      <a href="{% url 'ui:device_new' %}" class="btn">{% icon "pencil" %} Edit</a>
-      <div class="relative" x-data="{ open: false }" @click.outside="open = false">
-        <button class="btn btn-icon" @click="open = !open" aria-label="More">{% icon "ellipsis-vertical" %}</button>
-        <div x-show="open" x-cloak x-transition class="card absolute right-0 z-20 mt-1 w-52 p-1.5">
-          <a href="{% url 'ui:monitor_new' %}" class="nav-link">{% icon "activity" %} Add monitor</a>
-          <a href="{% url 'ui:maintenance' %}" class="nav-link">{% icon "wrench" %} Schedule maintenance</a>
-          <button class="nav-link w-full" @click="open=false; $store.toast.show('Device marked retired — prototype only','paused')">{% icon "archive" %} Retire device</button>
+        <a href="{% url 'inventory:device_edit' d.pk %}" class="btn">{% icon "pencil" %} Edit</a>
+        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+          <button class="btn btn-icon" @click="open = !open" aria-label="More actions">{% icon "ellipsis-vertical" %}</button>
+          <div x-show="open" x-cloak x-transition class="card absolute right-0 z-20 mt-1 w-56 p-1.5">
+            {% if d.status != "retired" %}
+              <form method="post" action="{% url 'inventory:device_retire' d.pk %}" onsubmit="return confirm('Retire {{ d.name|escapejs }}? It leaves its rack, but the record and its history are kept.')">{% csrf_token %}
+                <button class="nav-link w-full">{% icon "archive" %} Retire device</button></form>
+            {% endif %}
+            {% if can.delete_hard %}
+              <button class="nav-link w-full text-down hover:text-down" @click="open = false; $dispatch('open-delete')">{% icon "trash-2" %} Delete permanently</button>
+            {% endif %}
+          </div>
         </div>
-      </div>{% endif %}
+      {% endif %}
     </div>
   </div>
 </div>
@@ -43,201 +47,118 @@
 <div x-data="{ tab: '{{ tab }}' }">
   <div class="tabs mb-4">
     <button class="tab" :class="tab==='overview' && 'tab-active'" @click="tab='overview'">{% icon "info" "size-4" %} Overview</button>
-    <button class="tab" :class="tab==='ports' && 'tab-active'" @click="tab='ports'">{% icon "ethernet-port" "size-4" %} Ports & connections <span class="pill pill-muted">{{ connected }}/{{ ports|length }}</span></button>
-    <button class="tab" :class="tab==='ips' && 'tab-active'" @click="tab='ips'">{% icon "globe" "size-4" %} IP addresses <span class="pill pill-muted">{{ ips|length }}</span></button>
-    <button class="tab" :class="tab==='monitors' && 'tab-active'" @click="tab='monitors'">{% icon "activity" "size-4" %} Monitors <span class="pill pill-muted">{{ monitors|length }}</span></button>
-    {% if can.vault %}<button class="tab" :class="tab==='creds' && 'tab-active'" @click="tab='creds'">{% icon "key-round" "size-4" %} Credentials <span class="pill pill-muted">{{ credentials|length }}</span></button>{% endif %}
-    <button class="tab" :class="tab==='history' && 'tab-active'" @click="tab='history'">{% icon "history" "size-4" %} History</button>
+    <button class="tab" :class="tab==='ports' && 'tab-active'" @click="tab='ports'">{% icon "ethernet-port" "size-4" %} Ports & connections</button>
+    <button class="tab" :class="tab==='ips' && 'tab-active'" @click="tab='ips'">{% icon "globe" "size-4" %} IP addresses</button>
+    <button class="tab" :class="tab==='monitors' && 'tab-active'" @click="tab='monitors'">{% icon "activity" "size-4" %} Monitors</button>
+    {% if can.vault %}<button class="tab" :class="tab==='creds' && 'tab-active'" @click="tab='creds'">{% icon "key-round" "size-4" %} Credentials</button>{% endif %}
+    <button class="tab" :class="tab==='history' && 'tab-active'" @click="tab='history'">{% icon "history" "size-4" %} History <span class="pill pill-muted">{{ history|length }}</span></button>
   </div>
 
   {# ---------------- Overview ---------------- #}
   <div x-show="tab==='overview'" class="grid grid-cols-1 gap-4 lg:grid-cols-12">
-    <section class="card lg:col-span-5">
+    <section class="card lg:col-span-7">
       <div class="card-head"><h2 class="card-title">Details</h2></div>
       <dl class="card-body grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-[13px]">
         <dt class="text-muted">Manufacturer</dt><dd>{{ d.manufacturer }}</dd>
-        <dt class="text-muted">Model</dt><dd>{{ d.model }}</dd>
-        <dt class="text-muted">Serial number</dt><dd class="mono">{{ d.serial }}</dd>
-        <dt class="text-muted">Asset tag</dt><dd class="mono">{{ d.asset_tag }}</dd>
-        <dt class="text-muted">Firmware</dt><dd>{{ d.firmware }}</dd>
+        <dt class="text-muted">Model</dt><dd>{{ d.device_model.name }}</dd>
+        <dt class="text-muted">Type</dt><dd>{{ d.type_label }}</dd>
+        <dt class="text-muted">Serial number</dt><dd class="mono">{{ d.serial|default:"—" }}</dd>
+        <dt class="text-muted">Asset tag</dt><dd class="mono">{{ d.asset_tag|default:"—" }}</dd>
+        <dt class="text-muted">Firmware / OS</dt><dd>{{ d.firmware|default:"—" }}</dd>
         <dt class="text-muted">Management IP</dt><dd class="mono">{{ d.mgmt_ip|default:"—" }}</dd>
-        <dt class="text-muted">MAC address</dt><dd class="mono">{{ d.mac }}</dd>
-        <dt class="text-muted">Rack position</dt><dd>{% if d.rack %}{{ d.rack }} · U{{ d.position_u }} ({{ d.height_u }}U, {{ d.face }}){% else %}Not racked{% endif %}</dd>
-        <dt class="text-muted">Owner</dt><dd>{{ d.owner }}</dd>
-        <dt class="text-muted">Purchased</dt><dd>{{ d.purchase_date|date:"d M Y" }}</dd>
-        <dt class="text-muted">Warranty until</dt><dd>{{ d.warranty_expiry|date:"d M Y" }}</dd>
+        <dt class="text-muted">MAC address</dt><dd class="mono">{{ d.mac|default:"—" }}</dd>
+        <dt class="text-muted">Location</dt><dd>{{ d.location }}</dd>
+        <dt class="text-muted">Rack position</dt><dd>{% if d.rack %}<a class="hover:underline" href="{{ d.rack.get_absolute_url }}">{{ d.rack }}</a> · U{{ d.position_u }}{% if d.height_u > 1 %}–U{{ d.top_u }}{% endif %} ({{ d.height_u }}U, {{ d.get_face_display|lower }}){% else %}Not racked{% endif %}</dd>
+        <dt class="text-muted">Owner</dt><dd>{{ d.owner|default:"—" }}</dd>
+        <dt class="text-muted">Purchased</dt><dd>{{ d.purchase_date|date:"d M Y"|default:"—" }}</dd>
+        <dt class="text-muted">Warranty until</dt><dd>{% if d.warranty_expiry %}<span class="text-{{ d.warranty_days|days_tone }}">{{ d.warranty_expiry|date:"d M Y" }}</span> <span class="text-xs text-muted">({% if d.warranty_days < 0 %}expired{% else %}{{ d.warranty_days }} days left{% endif %})</span>{% else %}—{% endif %}</dd>
+        <dt class="text-muted">Added</dt><dd>{{ d.created_at|date:"d M Y" }}{% if d.created_by %} by {{ d.created_by.name }}{% endif %}</dd>
+        <dt class="text-muted">Last changed</dt><dd>{{ d.updated_at|naturaltime }}{% if d.updated_by %} by {{ d.updated_by.name }}{% endif %}</dd>
       </dl>
-      {% if d.notes %}<div class="mx-5 mb-5 rounded-xl border border-line bg-surface-2 p-3 text-[13px] text-ink-2">{{ d.notes }}</div>{% endif %}
-      {% if d.attributes %}
+      {% if d.notes %}<div class="mx-5 mb-5 rounded-xl border border-line bg-surface-2 p-3 text-[13px] whitespace-pre-line text-ink-2">{{ d.notes }}</div>{% endif %}
+      {% if attributes %}
         <div class="border-t border-line px-5 py-4">
           <div class="mb-3 text-xs font-semibold text-muted uppercase">Extra attributes</div>
           <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[13px]">
-            {% for k, v in d.attributes.items %}<dt class="text-muted">{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
+            {% for a in attributes %}<dt class="text-muted">{{ a.key }}</dt><dd>{{ a.value }}</dd>{% endfor %}
           </dl>
         </div>
       {% endif %}
     </section>
 
-    <div class="space-y-4 lg:col-span-7">
-      <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">Front panel</h2>
-          <div class="flex items-center gap-3 text-[11px] text-muted">
-            <span class="flex items-center gap-1.5"><span class="port port-up h-3 w-3"></span>Connected</span>
-            <span class="flex items-center gap-1.5"><span class="port port-down h-3 w-3"></span>Fault</span>
-            <span class="flex items-center gap-1.5"><span class="port port-empty h-3 w-3"></span>Free</span>
-            <span class="flex items-center gap-1.5"><span class="port port-disabled h-3 w-3"></span>Disabled</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="overflow-x-auto rounded-xl border border-line-strong bg-frame p-3">
-            <div class="flex w-max flex-col gap-1.5">
-              <div class="flex gap-1.5">
-                {% for p in ports_top %}
-                  <button type="button" @click="tab='ports'" class="port port-{{ p.status }}" title="{{ p.name }}{% if p.to_device %} → {{ p.to_device.name }} {{ p.to_port }}{% elif p.external %} → {{ p.external }}{% endif %}{% if p.function %} · {{ p.function }}{% endif %}">{{ p.name|cut:"Gi1/0/"|cut:"Te1/1/"|cut:"port"|cut:"ether"|cut:"Gi"|truncatechars:4 }}</button>
-                {% endfor %}
-              </div>
-              {% if ports_bottom %}
-              <div class="flex gap-1.5">
-                {% for p in ports_bottom %}
-                  <button type="button" @click="tab='ports'" class="port port-{{ p.status }}" title="{{ p.name }}{% if p.to_device %} → {{ p.to_device.name }} {{ p.to_port }}{% elif p.external %} → {{ p.external }}{% endif %}{% if p.function %} · {{ p.function }}{% endif %}">{{ p.name|cut:"Gi1/0/"|cut:"Te1/1/"|cut:"port"|cut:"ether"|cut:"Gi"|truncatechars:4 }}</button>
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-          <p class="hint mt-2">Hover a port for details. Click to open the port table.</p>
-        </div>
-      </section>
-
+    <div class="space-y-4 lg:col-span-5">
       <section class="card">
         <div class="card-head"><h2 class="card-title">Dependencies</h2></div>
         <div class="card-body flex flex-wrap items-center gap-3 text-[13px]">
-          {% if parent %}
-            <a href="{% url 'ui:device_detail' parent.id %}" class="inset flex items-center gap-2 px-3 py-2 hover:border-line-strong">{% icon parent.icon "size-4 text-muted" %}{{ parent.name }}</a>
+          {% if d.parent %}
+            <a href="{{ d.parent.get_absolute_url }}" class="inset flex items-center gap-2 px-3 py-2 hover:border-line-strong">{% icon d.parent.icon "size-4 text-muted" %}{{ d.parent }}</a>
             {% icon "arrow-right" "size-4 text-faint" %}
           {% endif %}
           <span class="flex items-center gap-2 rounded-xl border border-accent bg-up-soft px-3 py-2 font-semibold">{% icon d.icon "size-4 text-up" %}{{ d.name }}</span>
           {% if children %}
             {% icon "arrow-right" "size-4 text-faint" %}
-            <div class="flex flex-wrap gap-1.5">{% for c in children %}<a href="{% url 'ui:device_detail' c.id %}" class="chip">{% icon c.icon "size-3.5" %}{{ c.name }}</a>{% endfor %}</div>
+            <div class="flex flex-wrap gap-1.5">{% for c in children %}<a href="{{ c.get_absolute_url }}" class="chip">{% icon c.icon "size-3.5" %}{{ c.name }}</a>{% endfor %}</div>
           {% endif %}
         </div>
-        <p class="hint px-5 pb-5">{% if children %}If {{ d.name }} goes down, {{ children|length }} device{{ children|length|pluralize }} behind it will show as unreachable and won't send separate alerts.{% else %}No devices depend on {{ d.name }}.{% endif %}</p>
+        <p class="hint px-5 pb-5">{% if children %}If {{ d.name }} goes down, {{ children|length }} device{{ children|length|pluralize }} behind it will show as unreachable instead of each sending an alert.{% elif d.parent %}Reached through {{ d.parent }}.{% else %}No dependencies set. Edit the device to choose the upstream device it's reached through.{% endif %}</p>
       </section>
+
+      {% if rack %}
+        <section class="card">
+          <div class="card-head"><h2 class="card-title">In {{ d.rack }}</h2><a href="{{ d.rack.get_absolute_url }}" class="link-more">Open rack {% icon "arrow-up-right" "size-3" %}</a></div>
+          <div class="card-body max-h-96 overflow-y-auto">{% include "inventory/partials/rack_elevation.html" with compact=True %}</div>
+        </section>
+      {% endif %}
     </div>
   </div>
 
-  {# ---------------- Ports ---------------- #}
-  <section x-show="tab==='ports'" x-cloak class="card overflow-hidden" x-data="{ onlyConnected: false }">
-    <div class="flex flex-wrap items-center gap-2 border-b border-line p-3">
-      <label class="flex items-center gap-2 text-[13px] text-ink-2"><input type="checkbox" x-model="onlyConnected" class="size-4 accent-[var(--accent)]"> Connected ports only</label>
-      {% if can.edit %}<div class="ml-auto flex gap-2">
-        <button class="btn btn-sm" @click="$store.toast.show('Bulk port creator — prototype only')">{% icon "plus" "size-3.5" %} Bulk add ports</button>
-        <button class="btn btn-primary btn-sm" @click="$dispatch('open-connect')">{% icon "cable" "size-3.5" %} Add connection</button>
-      </div>{% endif %}
-    </div>
-    <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>Port</th><th>Connected to</th><th>Function</th><th class="hidden md:table-cell">Mode</th><th class="hidden md:table-cell">VLANs</th><th class="hidden lg:table-cell">Speed</th><th class="hidden xl:table-cell">Remark</th><th></th></tr></thead>
-        <tbody>
-          {% for p in ports %}
-            <tr {% if not p.connection %}x-show="!onlyConnected"{% endif %}>
-              <td><span class="flex items-center gap-2"><span class="port port-{{ p.status }} h-3 w-3"></span><span class="mono font-medium">{{ p.name }}</span></span></td>
-              <td>
-                {% if p.to_device %}<a href="{% url 'ui:device_detail' p.to_device.id %}" class="flex items-center gap-1.5 hover:underline">{% icon p.to_device.icon "size-3.5 text-muted" %}<span class="font-medium">{{ p.to_device.name }}</span><span class="mono text-muted">{{ p.to_port }}</span></a>
-                {% elif p.external %}<span class="flex items-center gap-1.5 text-ink-2">{% icon "globe" "size-3.5 text-muted" %}{{ p.external }}</span>
-                {% else %}<span class="text-faint">—</span>{% endif %}
-              </td>
-              <td class="text-ink-2">{{ p.function|default:"—" }}</td>
-              <td class="hidden md:table-cell">{% if p.mode == "trunk" %}<span class="pill pill-maint">Trunk</span>{% elif p.mode == "access" %}<span class="pill pill-muted">Access</span>{% elif p.mode == "routed" %}<span class="pill pill-warn">Routed</span>{% else %}<span class="text-faint">—</span>{% endif %}</td>
-              <td class="mono hidden text-ink-2 md:table-cell">{{ p.vlans }}</td>
-              <td class="hidden text-muted lg:table-cell">{{ p.speed }}</td>
-              <td class="hidden text-xs text-muted xl:table-cell">{{ p.remark|default:"" }}</td>
-              <td class="text-right whitespace-nowrap">
-                {% if p.connection %}
-                  <button class="btn btn-ghost btn-sm" hx-get="{% url 'ui:connection_trace' p.connection.id %}" hx-target="#trace-body" @click="$dispatch('open-trace')">{% icon "waypoints" "size-3.5" %} Trace</button>
-                {% endif %}
-                {% if can.edit %}<button class="btn btn-ghost btn-icon btn-sm" @click="$dispatch('open-connect')" aria-label="Edit">{% icon "pencil" "size-3.5" %}</button>{% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  {# ---------------- Coming in later phases ---------------- #}
+  <section x-show="tab==='ports'" x-cloak class="card">
+    {% include "components/empty_state.html" with icon="ethernet-port" title="Ports & connections come next" text="The next step adds this device's ports, what each one connects to, its function and VLANs, and cable tracing." %}
   </section>
-
-  {# ---------------- IPs ---------------- #}
-  <section x-show="tab==='ips'" x-cloak class="card overflow-hidden">
-    <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>IP address</th><th>Service</th><th>Status</th><th>DNS name</th><th>NAT</th></tr></thead>
-        <tbody>
-          {% for ip in ips %}
-            <tr><td class="mono font-medium">{{ ip.ip }}</td><td>{{ ip.service }}</td><td>{% include "components/status_pill.html" with status=ip.status %}</td><td class="mono text-ink-2">{{ ip.dns|default:"—" }}</td><td class="mono text-xs text-muted">{{ ip.nat|default:"—" }}</td></tr>
-          {% empty %}
-            <tr><td colspan="5">{% include "components/empty_state.html" with icon="globe" title="No IP addresses" text="Assign an IP from a prefix to link it to this device." %}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  {# ---------------- Monitors ---------------- #}
-  <section x-show="tab==='monitors'" x-cloak class="card overflow-hidden">
-    {% if monitors %}
-      <ul class="divide-y divide-line">
-        {% for m in monitors %}
-          <li class="flex flex-wrap items-center gap-4 px-5 py-4">
-            <a href="{% url 'ui:monitor_detail' m.id %}" class="min-w-48 flex-1"><div class="font-medium hover:underline">{{ m.name }}</div><div class="mono text-xs text-muted">{{ m.target }}</div></a>
-            {% include "components/heartbeats.html" with beats=m.heartbeats|slice:"-40:" cls="hidden md:flex" %}
-            <span class="w-20 text-right font-semibold tabular-nums text-{{ m.uptime_24h|uptime_tone }}">{{ m.uptime_24h }}%</span>
-            {% include "components/status_pill.html" with status=m.status %}
-          </li>
-        {% endfor %}
-      </ul>
+  <section x-show="tab==='ips'" x-cloak class="card">
+    {% if d.mgmt_ip %}
+      <div class="table-wrap"><table class="table"><thead><tr><th>IP address</th><th>Use</th></tr></thead>
+        <tbody><tr><td class="mono font-medium">{{ d.mgmt_ip }}</td><td>Management</td></tr></tbody></table></div>
+      <p class="hint px-5 pb-5">Other IP assignments (public IPs, NAT) arrive with IP address management.</p>
     {% else %}
-      {% if can.edit %}{% url 'ui:monitor_new' as new_url %}{% endif %}
-      {% include "components/empty_state.html" with icon="activity" title="Not monitored" text="Add a ping or TCP monitor to get alerts when this device goes down." action_url=new_url action_label="Add monitor" %}
+      {% include "components/empty_state.html" with icon="globe" title="No IP addresses" text="Add a management IP by editing the device. Full IP address management comes in a later step." %}
     {% endif %}
   </section>
-
-  {# ---------------- Credentials ---------------- #}
+  <section x-show="tab==='monitors'" x-cloak class="card">
+    {% include "components/empty_state.html" with icon="activity" title="Monitoring comes later" text="Ping, port and website checks for this device arrive with the monitoring step." %}
+  </section>
   {% if can.vault %}
-  <section x-show="tab==='creds'" x-cloak class="card overflow-hidden">
-    {% if credentials %}
-      <ul class="divide-y divide-line">
-        {% for c in credentials %}
-          <li class="flex flex-wrap items-center gap-4 px-5 py-4">
-            <span class="icon-chip">{% icon "key-round" "size-4" %}</span>
-            <div class="min-w-0 flex-1"><div class="font-medium">{{ c.name }}</div><div class="text-xs text-muted">{{ c.username }} · {{ c.protocol|upper }} · {{ c.host }}</div></div>
-            <span class="mono tracking-widest text-muted">••••••••••</span>
-            <a href="{% url 'ui:credential_detail' c.id %}" class="btn btn-sm">{% icon "eye" "size-3.5" %} Reveal in vault</a>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      {% include "components/empty_state.html" with icon="key-round" title="No credentials linked" text="Add a credential in the vault and link it to this device." %}
-    {% endif %}
+  <section x-show="tab==='creds'" x-cloak class="card">
+    {% include "components/empty_state.html" with icon="key-round" title="Vault comes later" text="Passwords linked to this device arrive with the password vault step." %}
   </section>
   {% endif %}
 
   {# ---------------- History ---------------- #}
-  <section x-show="tab==='history'" x-cloak class="card p-5">
-    <ol class="relative space-y-5 border-l border-line pl-6">
-      {% for a in history %}
-        {% with m=action_meta|get:a.action %}
-          <li class="relative">
-            <span class="absolute top-1 -left-[29px] size-2.5 rounded-full bg-{{ m.1 }} ring-4 ring-surface"></span>
-            <div class="flex flex-wrap items-center gap-2 text-[13px]"><span class="font-medium">{{ a.actor }}</span><span class="pill pill-{{ m.1 }}">{{ m.0 }}</span><span class="text-ink-2">{{ a.object }}</span><span class="ml-auto text-xs text-muted">{{ a.time|naturaltime }}</span></div>
-            {% if a.changes %}<div class="mt-2 space-y-1">{% for f, ch in a.changes.items %}<div class="mono text-xs text-muted">{{ f }}: <span class="text-down line-through">{{ ch.0|default:"∅" }}</span> → <span class="text-up">{{ ch.1 }}</span></div>{% endfor %}</div>{% endif %}
-          </li>
-        {% endwith %}
-      {% endfor %}
-    </ol>
+  <section x-show="tab==='history'" x-cloak class="card overflow-hidden">
+    {% if history %}
+      {% include "audit/partials/entries_table.html" with entries=history expandable=True %}
+    {% else %}
+      {% include "components/empty_state.html" with icon="history" title="No history yet" text="Changes to this device will appear here." %}
+    {% endif %}
   </section>
 </div>
 
-{% if can.edit %}{% include "dcim/partials/connect_modal.html" with this_device=d %}{% endif %}
-{% include "dcim/partials/trace_modal.html" %}
+{% if can.delete_hard %}
+<div x-data="{ open: false, typed: '' }" @open-delete.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+  <form method="post" action="{% url 'inventory:device_delete' d.pk %}" @click.outside="open = false" class="card w-full max-w-md p-0">
+    {% csrf_token %}
+    <div class="card-head border-b border-line pb-4"><h2 class="card-title text-down">Delete {{ d.name }} permanently?</h2></div>
+    <div class="space-y-3 p-5 text-[13px]">
+      <p class="text-ink-2">This removes the device and its extra attributes. Devices that depend on it lose that link. Its audit history is kept. <b class="text-ink">Retiring</b> is usually the better choice.</p>
+      <label class="field-label" for="confirm_name">Type <span class="mono text-ink">{{ d.name }}</span> to confirm</label>
+      <input id="confirm_name" name="confirm_name" x-model="typed" class="input mono" autocomplete="off">
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line px-5 py-4">
+      <button type="button" class="btn" @click="open = false">Cancel</button>
+      <button class="btn btn-danger" :disabled="typed.trim().toLowerCase() !== '{{ d.name|lower|escapejs }}'">Delete permanently</button>
+    </div>
+  </form>
+</div>
+{% endif %}
 {% endblock %}

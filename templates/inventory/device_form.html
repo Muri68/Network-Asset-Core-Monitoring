@@ -1,81 +1,117 @@
 {% extends "base.html" %}
-{% block title %}Add device{% endblock %}
+{% block title %}{% if device %}Edit {{ device.name }}{% else %}Add device{% endif %}{% endblock %}
 {% block crumb %}Infrastructure / Devices{% endblock %}
-{% block heading %}Add device{% endblock %}
-{% block page_title %}Add device{% endblock %}
-{% block page_subtitle %}Ports are created automatically from the device model template. You can connect them afterwards.{% endblock %}
+{% block heading %}{% if device %}Edit {{ device.name }}{% else %}Add device{% endif %}{% endblock %}
+{% block page_title %}{% if device %}Edit {{ device.name }}{% else %}Add device{% endif %}{% endblock %}
+{% block page_subtitle %}Fields marked * are required. New manufacturers and models are created as you type them.{% endblock %}
 
 {% block content %}
-<form data-prototype="Device created" class="grid grid-cols-1 gap-4 lg:grid-cols-12" x-data="{ racked: true, type: 'switch' }">
+{% if not has_locations %}
+  <section class="card">{% url 'inventory:racks' as start_url %}{% include "components/empty_state.html" with icon="map-pin" title="Add a location first" text="Every device belongs to a location. Create one on the Racks page." action_url=start_url action_label="Go to Racks" %}</section>
+{% else %}
+<form method="post" class="grid grid-cols-1 gap-4 lg:grid-cols-12" novalidate
+      x-data="{ rack: '{{ form.rack.value|default:'' }}' }">
+  {% csrf_token %}
+  {% if form.errors or attr_errors %}
+    <div class="lg:col-span-12 rounded-lg border border-down/30 bg-down-soft px-4 py-3 text-[13px] text-down">
+      {% icon "circle-x" "size-4 mr-1 inline" %} Please fix the highlighted fields.
+      {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+      {% for e in attr_errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
   <div class="space-y-4 lg:col-span-8">
     <section class="card">
       <div class="card-head"><h2 class="card-title">Identity</h2></div>
       <div class="card-body grid gap-4 sm:grid-cols-2">
-        <div><label class="field-label">Device name</label><input class="input" placeholder="SW-ACCESS-03" required><p class="hint">Must be unique.</p></div>
-        <div><label class="field-label">Type</label>
-          <select class="input" x-model="type">{% for key, t in types.items %}<option value="{{ key }}">{{ t.label }}</option>{% endfor %}</select></div>
-        <div><label class="field-label">Manufacturer</label><input class="input" list="mfrs" placeholder="Cisco"><datalist id="mfrs"><option>Cisco</option><option>Fortinet</option><option>MikroTik</option><option>Dell</option><option>HPE</option><option>Hikvision</option><option>ZKTeco</option><option>Ubiquiti</option></datalist></div>
-        <div><label class="field-label">Model</label><input class="input" placeholder="Catalyst 9300-48P"></div>
-        <div><label class="field-label">Serial number</label><input class="input mono"></div>
-        <div><label class="field-label">Asset tag</label><input class="input mono" placeholder="ACME-0031"></div>
-        <div><label class="field-label">Firmware / OS</label><input class="input" placeholder="IOS-XE 17.12.4"></div>
-        <div><label class="field-label">Status</label><select class="input"><option>Active</option><option>Spare</option><option>Faulty</option><option>Retired</option></select></div>
+        {% include "components/field.html" with field=form.name %}
+        {% include "components/field.html" with field=form.device_type %}
+        <div>
+          <label class="field-label" for="id_manufacturer_name">Manufacturer *</label>
+          <input id="id_manufacturer_name" name="manufacturer_name" list="manufacturers" value="{{ form.manufacturer_name.value|default:'' }}" class="input" placeholder="Cisco" required aria-invalid="{% if form.manufacturer_name.errors %}true{% else %}false{% endif %}">
+          <datalist id="manufacturers">{% for m in manufacturers %}<option value="{{ m }}">{% endfor %}</datalist>
+          {% for e in form.manufacturer_name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div>
+          <label class="field-label" for="id_model_name">Model *</label>
+          <input id="id_model_name" name="model_name" list="models" value="{{ form.model_name.value|default:'' }}" class="input" placeholder="Catalyst 9300-48P" required aria-invalid="{% if form.model_name.errors %}true{% else %}false{% endif %}">
+          <datalist id="models">{% for m in models %}<option value="{{ m }}">{% endfor %}</datalist>
+          {% for e in form.model_name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        {% include "components/field.html" with field=form.serial %}
+        {% include "components/field.html" with field=form.asset_tag %}
+        {% include "components/field.html" with field=form.firmware %}
+        {% include "components/field.html" with field=form.status %}
       </div>
     </section>
 
     <section class="card">
       <div class="card-head"><h2 class="card-title">Network</h2></div>
       <div class="card-body grid gap-4 sm:grid-cols-2">
-        <div><label class="field-label">Management IP</label><input class="input mono" placeholder="10.10.0.5"><p class="hint">Picked from IPAM. Duplicates are rejected.</p></div>
-        <div><label class="field-label">MAC address</label><input class="input mono" placeholder="aa:bb:cc:dd:ee:ff"></div>
-        <div class="sm:col-span-2"><label class="field-label">Depends on (upstream device)</label>
-          <select class="input"><option value="">— None —</option>{% for d in devices %}<option>{{ d.name }}</option>{% endfor %}</select>
-          <p class="hint">Used for alert suppression: if the upstream device is down, this one shows as unreachable.</p></div>
+        {% include "components/field.html" with field=form.mgmt_ip %}
+        {% include "components/field.html" with field=form.mac %}
+        <div class="sm:col-span-2">
+          {% include "components/field.html" with field=form.parent %}
+          <p class="hint">The upstream device this one is reached through. If it goes down, this device shows as unreachable instead of sending its own alert.</p>
+        </div>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head"><h2 class="card-title">Ports</h2><span class="pill pill-muted">Auto from template</span></div>
-      <div class="card-body grid gap-4 sm:grid-cols-2">
-        <div><label class="field-label">Port pattern</label><input class="input mono" value="GigabitEthernet1/0/[1-48]"><p class="hint">Ranges in brackets expand to one port each.</p></div>
-        <div><label class="field-label">Uplink ports</label><input class="input mono" value="TenGigabitEthernet1/1/[1-4]"></div>
-        <div class="sm:col-span-2 rounded-xl border border-line bg-surface-2 p-3 text-xs text-muted">Preview: <span class="mono text-ink-2">Gi1/0/1, Gi1/0/2 … Gi1/0/48, Te1/1/1 … Te1/1/4</span> — 52 ports will be created.</div>
+    {{ attributes|json_script:"attrs-data" }}
+    <section class="card" x-data="{ rows: JSON.parse(document.getElementById('attrs-data').textContent) }">
+      <div class="card-head"><h2 class="card-title">Extra attributes</h2>
+        <button type="button" class="btn btn-sm" @click="rows.push(['', ''])">{% icon "plus" "size-3.5" %} Add</button></div>
+      <div class="card-body space-y-2">
+        <template x-for="(row, i) in rows" :key="i">
+          <div class="flex gap-2">
+            <input name="attr_key" x-model="row[0]" class="input w-2/5" placeholder="e.g. NVR channel">
+            <input name="attr_value" x-model="row[1]" class="input flex-1" placeholder="e.g. NVR-01 / CH 7">
+            <button type="button" class="btn btn-ghost btn-icon" @click="rows.splice(i, 1)" aria-label="Remove">{% icon "x" %}</button>
+          </div>
+        </template>
+        <p class="hint" x-show="rows.length === 0">Anything specific to this device: licence expiry, NVR channel, PoE port, console settings…</p>
       </div>
     </section>
   </div>
 
   <div class="space-y-4 lg:col-span-4">
     <section class="card">
-      <div class="card-head"><h2 class="card-title">Location</h2>
-        <label class="flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" x-model="racked" class="size-4 accent-[var(--accent)]"> Rack mounted</label></div>
+      <div class="card-head"><h2 class="card-title">Location & rack</h2></div>
       <div class="card-body space-y-4">
-        <div><label class="field-label">Location</label><select class="input">{% for l in locations %}<option>{{ l.name }}</option>{% endfor %}</select></div>
-        <template x-if="racked"><div class="space-y-4">
-          <div><label class="field-label">Rack</label><select class="input">{% for r in racks %}<option>{{ r.name }}</option>{% endfor %}</select></div>
-          <div class="grid grid-cols-3 gap-3">
-            <div><label class="field-label">Starting U</label><input type="number" class="input" value="26"></div>
-            <div><label class="field-label">Height</label><select class="input"><option>1U</option><option>2U</option><option>3U</option><option>4U</option></select></div>
-            <div><label class="field-label">Face</label><select class="input"><option>Front</option><option>Rear</option></select></div>
-          </div>
-          <div class="flex items-center gap-2 rounded-lg bg-up-soft px-3 py-2 text-xs text-up">{% icon "circle-check" "size-3.5" %} U26 is free in Rack 3</div>
-        </div></template>
+        <div x-show="!rack">{% include "components/field.html" with field=form.location %}</div>
+        <div>
+          <label class="field-label" for="id_rack">Rack</label>
+          <select name="rack" id="id_rack" class="input" x-model="rack" aria-invalid="{% if form.rack.errors %}true{% else %}false{% endif %}">
+            <option value="">— Not racked —</option>
+            {% for r in racks %}<option value="{{ r.pk }}" {% if form.rack.value|stringformat:'s' == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.location }} · {{ r.name }} ({{ r.height_u }}U)</option>{% endfor %}
+          </select>
+          {% for e in form.rack.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        </div>
+        <div x-show="rack" x-cloak class="grid grid-cols-3 gap-3">
+          {% include "components/field.html" with field=form.position_u %}
+          {% include "components/field.html" with field=form.height_u %}
+          {% include "components/field.html" with field=form.face %}
+        </div>
+        <div id="rack-check" hx-get="{% url 'inventory:rack_check' %}" hx-trigger="load, change from:#id_rack, input changed delay:300ms from:#id_position_u, input changed delay:300ms from:#id_height_u, change from:#id_face"
+             hx-include="#id_rack, #id_position_u, #id_height_u, #id_face" {% if device %}hx-vals='{"device": "{{ device.pk }}"}'{% endif %}></div>
       </div>
     </section>
 
     <section class="card">
       <div class="card-head"><h2 class="card-title">Lifecycle</h2></div>
       <div class="card-body grid grid-cols-2 gap-3">
-        <div><label class="field-label">Purchased</label><input type="date" class="input"></div>
-        <div><label class="field-label">Warranty until</label><input type="date" class="input"></div>
-        <div class="col-span-2"><label class="field-label">Owner</label><select class="input"><option>Network team</option><option>Infrastructure</option><option>Security team</option></select></div>
-        <div class="col-span-2"><label class="field-label">Notes</label><textarea class="input" rows="3"></textarea></div>
+        {% include "components/field.html" with field=form.purchase_date %}
+        {% include "components/field.html" with field=form.warranty_expiry %}
+        {% include "components/field.html" with field=form.owner cls="col-span-2" %}
+        {% include "components/field.html" with field=form.notes cls="col-span-2" %}
       </div>
     </section>
 
     <div class="flex gap-2">
-      <a href="{% url 'ui:devices' %}" class="btn flex-1">Cancel</a>
+      <a href="{% if device %}{{ device.get_absolute_url }}{% else %}{% url 'inventory:devices' %}{% endif %}" class="btn flex-1">Cancel</a>
       <button class="btn btn-primary flex-1">{% icon "check" %} Save device</button>
     </div>
   </div>
 </form>
+{% endif %}
 {% endblock %}

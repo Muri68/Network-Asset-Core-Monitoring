@@ -16,7 +16,7 @@
       <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-muted">
         <span class="tag">{{ types|get:m.type }}</span>
         <span class="mono text-ink-2">{{ m.target }}</span>
-        {% if m.device %}<span>·</span><a class="hover:text-ink hover:underline" href="{% url 'ui:device_detail' m.device.id %}">{{ m.device.name }}</a>{% endif %}
+        {% if m.device %}<span>·</span><a class="hover:text-ink hover:underline" href="{% url 'inventory:devices' %}?status=all&q={{ m.device.name|urlencode }}">{{ m.device.name }}</a>{% endif %}
       </div>
       {% if m.cause %}<p class="mt-2 text-[13px] text-{% if m.status == 'down' %}down{% elif m.status == 'unreachable' %}unreach{% else %}muted{% endif %}">{{ m.cause }} · since {{ m.since|naturaltime }}</p>{% endif %}
     </div>

@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.decorators import capability_required
 from apps.accounts.roles import can
 from apps.audit.models import AuditLog
+from apps.inventory.models import Device
 
 from . import fake_data as fd
 
@@ -56,25 +57,23 @@ def dashboard(request):
     response = [rng.randint(140, 260) for _ in range(24)]
     response[18] = 610
 
-    type_counts = Counter(d["type"] for d in fd.DEVICES if d["status"] != "retired")
+    live = Device.objects.exclude(status=Device.Status.RETIRED)
+    type_counts = Counter(live.values_list("device_type", flat=True))
     donut_keys = ["switch", "server", "camera", "access_point", "other"]
     donut_vals = [type_counts["switch"], type_counts["server"] + type_counts["storage"], type_counts["camera"],
                   type_counts["access_point"]]
     donut_vals.append(sum(type_counts.values()) - sum(donut_vals))
 
-    warranty = sorted(
-        (d for d in fd.DEVICES if d["status"] == "active" and (d["warranty_expiry"] - today).days <= 90),
-        key=lambda d: d["warranty_expiry"],
-    )
-    for d in warranty:
-        d["warranty_days"] = (d["warranty_expiry"] - today).days
+    warranty = live.filter(status=Device.Status.ACTIVE, warranty_expiry__isnull=False,
+                           warranty_expiry__lte=today + timedelta(days=90)
+                           ).select_related("device_model").order_by("warranty_expiry")[:5]
 
     up_count = fd.status_counts()["up"]
     ctx = {
         **_dashboard_counters(),
         "health": round(sum(m["uptime_24h"] for m in fd.MONITORS) / len(fd.MONITORS), 2),
         "up_count": up_count,
-        "devices_total": sum(1 for d in fd.DEVICES if d["status"] != "retired"),
+        "devices_total": sum(type_counts.values()),
         "device_types": len(type_counts),
         "public_prefixes": [p for p in fd.PREFIXES if p["kind"] == "public"],
         "public_used": sum(p["used"] for p in fd.PREFIXES if p["kind"] == "public"),
@@ -82,7 +81,7 @@ def dashboard(request):
         "open_incidents": [i for i in fd.INCIDENTS if i["status"] == "open"],
         "alerts": fd.ALERTS[:5],
         "ssl": sorted((m for m in fd.MONITORS if m["cert_days"] is not None), key=lambda m: m["cert_days"]),
-        "warranty": warranty[:5],
+        "warranty": warranty,
         "recent_audit": AuditLog.objects.select_related("object_type")[:6] if can(request.user, "audit") else [],
         "prefixes": fd.PREFIXES,
         "maintenance_active": [m for m in fd.MAINTENANCE if m["state"] == "active"],
@@ -166,85 +165,6 @@ def maintenance(request):
 # --------------------------------------------------------------------------
 # Infrastructure
 # --------------------------------------------------------------------------
-
-
-def devices(request):
-    dtype = request.GET.get("type", "")
-    status = request.GET.get("status", "")
-    q = _q(request)
-    rows = [
-        d for d in fd.DEVICES
-        if (not dtype or d["type"] == dtype)
-        and (not status or d["status"] == status)
-        and (not q or q in d["name"].lower() or q in (d["mgmt_ip"] or "") or q in d["model"].lower())
-    ]
-    mon = {m["device"]["id"]: m for m in fd.MONITORS if m["device"]}
-    for d in rows:
-        d["monitor"] = mon.get(d["id"])
-    type_counts = Counter(d["type"] for d in fd.DEVICES)
-    types = [(k, v["label"], v["icon"], type_counts.get(k, 0)) for k, v in fd.DEVICE_TYPES.items()]
-    return _page(request, "inventory/devices.html", "devices", devices=rows, types=types, dtype=dtype,
-                 status=status, q=q, total=len(fd.DEVICES))
-
-
-def device_detail(request, pk):
-    d = _get(fd.DEVICES_BY_ID, pk)
-    ports = fd.ports_for(d)
-    ips = []
-    if d["mgmt_ip"]:
-        ips.append({"ip": d["mgmt_ip"], "service": "Management", "status": "used", "nat": "", "dns": ""})
-    ips += [{"ip": ip, **a} for ip, a in fd.IP_ASSIGNMENTS.items() if a["device"] == d["name"]]
-    children = [c for c in fd.DEVICES if c["parent_id"] == d["id"]]
-    ctx = {
-        "d": d,
-        "devices": fd.DEVICES,
-        "ports": ports,
-        "ports_top": ports[0::2] if len(ports) > 12 else ports,
-        "ports_bottom": ports[1::2] if len(ports) > 12 else [],
-        "connected": sum(1 for p in ports if p["connection"]),
-        "ips": ips,
-        "parent": fd.DEVICES_BY_ID.get(d["parent_id"]),
-        "children": children,
-        "monitors": [m for m in fd.MONITORS if m["device"] and m["device"]["id"] == d["id"]],
-        "credentials": [c for c in fd.CREDENTIALS if c["device"] and c["device"]["id"] == d["id"]],
-        "history": [a for a in fd.AUDIT if d["name"] in a["object"]] or fd.AUDIT[6:9],
-        "action_meta": fd.AUDIT_ACTION_META,
-        "tab": request.GET.get("tab", "overview"),
-    }
-    return _page(request, "inventory/device_detail.html", "devices", **ctx)
-
-
-@capability_required("edit")
-def device_form(request):
-    return _page(request, "inventory/device_form.html", "devices", types=fd.DEVICE_TYPES, racks=fd.RACKS,
-                 devices=fd.DEVICES, locations=fd.LOCATIONS)
-
-
-def _rack_layout(rack):
-    unit_px = 22
-    items = []
-    for d in fd.DEVICES:
-        if d["rack_id"] != rack["id"] or not d["position_u"]:
-            continue
-        top_u = d["position_u"] + d["height_u"] - 1
-        items.append({**d, "top_px": (rack["height"] - top_u) * unit_px + 1,
-                      "height_px": d["height_u"] * unit_px - 3, "top_u": top_u})
-    used = sum(i["height_u"] for i in items)
-    return {**rack, "items": sorted(items, key=lambda i: -i["position_u"]), "used": used,
-            "free": rack["height"] - used,
-            "pct": round(used * 100 / rack["height"]), "units": list(range(rack["height"], 0, -1)),
-            "px": rack["height"] * unit_px}
-
-
-def racks(request):
-    return _page(request, "inventory/racks.html", "racks", racks=[_rack_layout(r) for r in fd.RACKS])
-
-
-def rack_detail(request, pk):
-    rack = next((r for r in fd.RACKS if r["id"] == pk), None)
-    if not rack:
-        raise Http404
-    return _page(request, "inventory/rack_detail.html", "racks", rack=_rack_layout(rack), racks=fd.RACKS)
 
 
 def connections(request):

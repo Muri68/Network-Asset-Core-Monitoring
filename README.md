@@ -9,7 +9,11 @@ rack/port documentation and an audited password vault. See [PLAN.md](PLAN.md) fo
 **Live:** sign-in with mandatory two-factor (authenticator app + backup codes), roles
 (Admin / Engineer / Viewer), user management, profile, vault reveal-code setup, and an
 append-only **audit log** of every sign-in, security event and change.
-**Still sample data:** monitoring, inventory, racks, IPAM, vault contents, settings.
+**Also live:** locations, racks and devices (inventory).
+**Still sample data:** monitoring, ports/connections, IPAM, vault contents, settings.
+
+Want sample devices to look around? `python manage.py load_demo_inventory` loads 30 demo devices
+and 3 racks — only into an empty inventory, and they're real records you'd delete afterwards.
 
 ## Run it locally
 
@@ -45,6 +49,8 @@ In the sample-data vault, the demo reveal code is still `123456`.
 config/            Django settings & URLs
 apps/accounts/     Users, roles, sign-in flow, 2FA, profile, user management
 apps/audit/        Append-only audit log: log_event(), track(Model), viewer and CSV export
+apps/core/         Shared base model (created/updated by) and form styling
+apps/inventory/    Locations, racks, devices, rack elevations
 apps/ui/           Sample-data views (replaced area by area), template tags
 templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
 tests/             pytest suite

@@ -71,15 +71,26 @@ class _Config:
             if f.name not in set(exclude) and not f.primary_key
         ]
 
-    def snapshot(self, instance):
-        values = {}
-        for f in self.fields:
-            value = f.value_from_object(instance)
-            values[f.name] = MASK if (f.name in self.mask and value) else _json_value(value)
-        return values
+    def _display(self, instance, field):
+        """Readable value: related objects by name, choices by label, secrets masked."""
+        raw = field.value_from_object(instance)
+        if field.name in self.mask:
+            return MASK if raw else None
+        if raw is None:
+            return None
+        if field.is_relation:
+            related = getattr(instance, field.name, None)
+            return str(related) if related is not None else None
+        if field.choices:
+            return str(dict(field.flatchoices).get(raw, raw))
+        return _json_value(raw)
 
-    def raw(self, instance):
-        return {f.name: f.value_from_object(instance) for f in self.fields}
+    def state(self, instance):
+        """{field: (comparable raw value, readable value)}"""
+        return {f.name: (f.value_from_object(instance), self._display(instance, f)) for f in self.fields}
+
+    def snapshot(self, instance):
+        return {name: shown for name, (_raw, shown) in self.state(instance).items()}
 
 
 def _pre_save(sender, instance, raw=False, **kwargs):
@@ -87,7 +98,7 @@ def _pre_save(sender, instance, raw=False, **kwargs):
     if config is None or raw or instance.pk is None:
         return
     old = sender._default_manager.filter(pk=instance.pk).first()
-    instance._audit_old = config.raw(old) if old is not None else None
+    instance._audit_old = config.state(old) if old is not None else None
 
 
 def _post_save(sender, instance, created, raw=False, **kwargs):
@@ -98,15 +109,13 @@ def _post_save(sender, instance, created, raw=False, **kwargs):
         changes = {k: [None, v] for k, v in config.snapshot(instance).items() if v not in (None, "", [], {})}
         log_event("create", instance, changes=changes)
         return
-    old, new = instance._audit_old, config.raw(instance)
-    changes = {}
-    for name, new_value in new.items():
-        if old.get(name) != new_value:
-            if name in config.mask:
-                changes[name] = [MASK, MASK]
-            else:
-                changes[name] = [_json_value(old.get(name)), _json_value(new_value)]
+    old, new = instance._audit_old, config.state(instance)
     instance._audit_old = None
+    changes = {}
+    for name, (new_raw, new_shown) in new.items():
+        old_raw, old_shown = old.get(name, (None, None))
+        if old_raw != new_raw:
+            changes[name] = [MASK, MASK] if name in config.mask else [old_shown, new_shown]
     if changes:
         log_event("update", instance, changes=changes)
 

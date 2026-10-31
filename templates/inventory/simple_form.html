@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block crumb %}Infrastructure / Racks{% endblock %}
+{% block heading %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block content %}
+<form method="post" class="card max-w-2xl" novalidate>
+  {% csrf_token %}
+  <div class="grid gap-4 p-5 sm:grid-cols-2">
+    <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+    {% for field in form %}
+      {% include "components/field.html" with field=field cls=field.field.widget.input_type|yesno:",sm:col-span-2" %}
+    {% endfor %}
+  </div>
+  <div class="flex justify-end gap-2 border-t border-line px-5 py-4">
+    <a href="{% url cancel_url %}" class="btn">Cancel</a>
+    <button class="btn btn-primary">Save</button>
+  </div>
+</form>
+{% endblock %}

@@ -2,27 +2,94 @@
 {% block title %}Racks{% endblock %}
 {% block crumb %}Infrastructure{% endblock %}
 {% block heading %}Racks{% endblock %}
-{% block page_title %}Racks{% endblock %}
-{% block page_subtitle %}HQ — Server Room · {{ racks|length }} racks. Click a device to open it.{% endblock %}
-{% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$store.toast.show('Add rack form — prototype only')">{% icon "plus" %} Add rack</button>{% endif %}{% endblock %}
+{% block page_title %}Locations & racks{% endblock %}
+{% block page_subtitle %}{% if sections %}{{ sections|length }} location{{ sections|length|pluralize }}{% if unracked %} · {{ unracked }} device{{ unracked|pluralize }} not in a rack{% endif %}. Click a device to open it.{% else %}Start with a location, then add its racks.{% endif %}{% endblock %}
+{% block page_actions %}
+  {% if can.edit %}
+    <button class="btn" x-data @click="$dispatch('open-location')">{% icon "map-pin" %} Add location</button>
+    {% if sections %}<button class="btn btn-primary" x-data @click="$dispatch('open-rack')">{% icon "plus" %} Add rack</button>{% endif %}
+  {% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-  {% for rack in racks %}
-    <section class="card flex flex-col">
-      <div class="card-head">
-        <div>
-          <a href="{% url 'ui:rack_detail' rack.id %}" class="card-title hover:underline">{{ rack.name }}</a>
-          <div class="mt-0.5 text-xs text-muted">{{ rack.location }} · {{ rack.height }}U · {{ rack.items|length }} devices</div>
+{% if not sections %}
+  <section class="card">
+    {% include "components/empty_state.html" with icon="map-pin" title="No locations yet" text="A location is a place that holds racks and devices, e.g. “HQ — Server Room” or “Branch office”." %}
+    {% if can.edit %}<div class="-mt-8 pb-10 text-center"><button class="btn btn-primary" x-data @click="$dispatch('open-location')">{% icon "plus" %} Add location</button></div>{% endif %}
+  </section>
+{% endif %}
+
+<div class="space-y-6">
+  {% for location, racks in sections %}
+    <section>
+      <div class="mb-3 flex flex-wrap items-center gap-3">
+        <span class="icon-chip">{% icon "map-pin" "size-4" %}</span>
+        <div class="min-w-0 flex-1">
+          <h2 class="text-[15px] font-semibold">{{ location.name }}</h2>
+          <p class="text-xs text-muted">{% if location.address %}{{ location.address }} · {% endif %}{{ racks|length }} rack{{ racks|length|pluralize }} · {{ location.device_count }} device{{ location.device_count|pluralize }}</p>
         </div>
-        <a href="{% url 'ui:rack_detail' rack.id %}" class="btn btn-sm">Open {% icon "arrow-up-right" "size-3" %}</a>
+        {% if can.edit %}
+          <a href="{% url 'inventory:rack_new' %}?location={{ location.pk }}" class="btn btn-sm">{% icon "plus" "size-3.5" %} Rack</a>
+          <a href="{% url 'inventory:location_edit' location.pk %}" class="btn btn-ghost btn-icon btn-sm" aria-label="Edit {{ location.name }}">{% icon "pencil" "size-3.5" %}</a>
+          {% if not racks and not location.device_count %}
+            <form method="post" action="{% url 'inventory:location_delete' location.pk %}" onsubmit="return confirm('Delete location {{ location.name|escapejs }}?')">{% csrf_token %}
+              <button class="btn btn-ghost btn-icon btn-sm text-down" aria-label="Delete {{ location.name }}">{% icon "trash-2" "size-3.5" %}</button></form>
+          {% endif %}
+        {% endif %}
       </div>
-      <div class="card-body">
-        <div class="mb-1.5 flex justify-between text-xs"><span class="text-muted">Space used</span><span class="font-semibold">{{ rack.used }}U / {{ rack.height }}U · {{ rack.pct }}%</span></div>
-        <div class="meter meter-{{ rack.pct|pct_tone }} mb-4"><span style="width: {{ rack.pct }}%"></span></div>
-        {% include "inventory/partials/rack_elevation.html" with compact=True %}
-      </div>
+      {% if racks %}
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {% for rack in racks %}
+            <article class="card flex flex-col">
+              <div class="card-head">
+                <div>
+                  <a href="{% url 'inventory:rack_detail' rack.obj.pk %}" class="card-title hover:underline">{{ rack.obj.name }}</a>
+                  <div class="mt-0.5 text-xs text-muted">{{ rack.obj.height_u }}U · {{ rack.items|length }} device{{ rack.items|length|pluralize }} on the front</div>
+                </div>
+                <a href="{% url 'inventory:rack_detail' rack.obj.pk %}" class="btn btn-sm">Open {% icon "arrow-up-right" "size-3" %}</a>
+              </div>
+              <div class="card-body">
+                <div class="mb-1.5 flex justify-between text-xs"><span class="text-muted">Front space used</span><span class="font-semibold">{{ rack.used }}U / {{ rack.obj.height_u }}U · {{ rack.pct }}%</span></div>
+                <div class="meter meter-{{ rack.pct|pct_tone }} mb-4"><span style="width: {{ rack.pct }}%"></span></div>
+                {% include "inventory/partials/rack_elevation.html" with compact=True %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card px-5 py-6 text-center text-xs text-muted">No racks here yet.{% if can.edit %} <a class="text-up hover:underline" href="{% url 'inventory:rack_new' %}?location={{ location.pk }}">Add one</a>.{% endif %}</div>
+      {% endif %}
     </section>
   {% endfor %}
 </div>
+
+{% if can.edit %}
+{# Add location #}
+<div x-data="{ open: false }" @open-location.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+  <form method="post" action="{% url 'inventory:location_new' %}" @click.outside="open=false" class="card w-full max-w-lg p-0" novalidate>
+    {% csrf_token %}
+    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add location</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
+    <div class="grid gap-4 p-5">
+      {% include "components/field.html" with field=location_form.name %}
+      {% include "components/field.html" with field=location_form.address %}
+      {% include "components/field.html" with field=location_form.notes %}
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save location</button></div>
+  </form>
+</div>
+{# Add rack #}
+<div x-data="{ open: false }" @open-rack.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+  <form method="post" action="{% url 'inventory:rack_new' %}" @click.outside="open=false" class="card w-full max-w-lg p-0" novalidate>
+    {% csrf_token %}
+    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add rack</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
+    <div class="grid gap-4 p-5 sm:grid-cols-2">
+      {% include "components/field.html" with field=rack_form.location cls="sm:col-span-2" %}
+      {% include "components/field.html" with field=rack_form.name %}
+      {% include "components/field.html" with field=rack_form.height_u %}
+      {% include "components/field.html" with field=rack_form.notes cls="sm:col-span-2" %}
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save rack</button></div>
+  </form>
+</div>
+{% endif %}
 {% endblock %}

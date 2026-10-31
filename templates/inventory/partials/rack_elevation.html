@@ -1,19 +1,23 @@
-{# Rack elevation. Expects `rack` from views._rack_layout and optional `compact`. #}
+{# Rack elevation. Expects `rack` from inventory.views.rack_layout; optional `compact`, `clickable`. #}
 <div class="rack-frame">
   <div class="relative" style="height: {{ rack.px }}px">
     {% for u in rack.units %}
-      <div class="rack-unit">
+      <div class="rack-unit group">
         <span class="w-7 pr-1.5 text-right font-mono text-[9px] text-faint">{{ u }}</span>
-        <span class="flex-1"></span>
+        {% if clickable and u in rack.free_units %}
+          <a href="{% url 'inventory:device_new' %}?rack={{ rack.obj.pk }}&position_u={{ u }}&face={{ rack.face }}"
+             class="flex h-full flex-1 items-center justify-center rounded text-[10px] text-faint opacity-0 transition group-hover:bg-up-soft group-hover:text-up group-hover:opacity-100"
+             title="Add a device at U{{ u }}">+ Add at U{{ u }}</a>
+        {% else %}<span class="flex-1"></span>{% endif %}
         {% if not compact %}<span class="w-7 pl-1.5 font-mono text-[9px] text-faint">{{ u }}</span>{% endif %}
       </div>
     {% endfor %}
     {% for d in rack.items %}
-      <a href="{% url 'ui:device_detail' d.id %}" class="rack-device rk-{{ d.type }} {% if compact %}!right-1.5{% endif %}"
-         style="top: {{ d.top_px }}px; height: {{ d.height_px }}px" title="{{ d.name }} · {{ d.model }} · U{{ d.position_u }}">
+      <a href="{{ d.get_absolute_url }}" class="rack-device rk-{{ d.device_type }} {% if compact %}!right-1.5{% endif %} {% if d.highlight %}ring-2 ring-accent{% endif %}"
+         style="top: {{ d.top_px }}px; height: {{ d.height_px }}px" title="{{ d.name }} · {{ d.device_model.name }} · U{{ d.position_u }}{% if d.height_u > 1 %}–U{{ d.top_u }}{% endif %}">
         {% icon d.icon "size-3.5 shrink-0" %}
         <span class="truncate">{{ d.name }}</span>
-        {% if not compact %}<span class="ml-auto hidden truncate font-normal opacity-70 sm:inline">{{ d.model }}</span>{% endif %}
+        {% if not compact %}<span class="ml-auto hidden truncate font-normal opacity-70 sm:inline">{{ d.device_model.name }}</span>{% endif %}
       </a>
     {% endfor %}
   </div>

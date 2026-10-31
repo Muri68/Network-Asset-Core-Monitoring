@@ -16,6 +16,8 @@ CAPABILITIES = {
     "view": {ADMIN, ENGINEER, VIEWER},
     # Create / edit / delete inventory, ports, IPAM, monitors, maintenance
     "edit": {ADMIN, ENGINEER},
+    # Permanently delete records (others retire instead)
+    "delete_hard": {ADMIN},
     # See the vault, reveal and edit credentials (reveal still needs the reveal code)
     "vault": {ADMIN, ENGINEER},
     # Reveal logs of every user (others see only their own)
@@ -32,6 +34,7 @@ CAPABILITIES = {
 CAPABILITY_LABELS = [
     ("view", "View inventory, racks, ports, IPAM, monitors"),
     ("edit", "Create / edit inventory, ports, IPAM, monitors"),
+    ("delete_hard", "Permanently delete devices (others can retire them)"),
     ("vault", "See vault entries and reveal passwords (with reveal code)"),
     ("vault_logs_all", "View reveal logs of all users"),
     ("import", "Import data"),
