@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ rack.name }}{% endblock %}
+{% block crumb %}Infrastructure / Racks{% endblock %}
+{% block heading %}{{ rack.name }}{% endblock %}
+{% block page_title %}{{ rack.name }}{% endblock %}
+{% block page_subtitle %}{{ rack.location }} · {{ rack.height }}U · {{ rack.used }}U used ({{ rack.pct }}%){% endblock %}
+{% block page_actions %}
+  <div class="flex gap-1">{% for r in racks %}<a href="{% url 'ui:rack_detail' r.id %}" class="chip {% if r.id == rack.id %}chip-active{% endif %}">Rack {{ r.id }}</a>{% endfor %}</div>
+  <a href="{% url 'ui:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+  <section class="card lg:col-span-5 xl:col-span-4" x-data="{ face: 'front' }">
+    <div class="card-head">
+      <h2 class="card-title">Elevation</h2>
+      <div class="flex gap-1"><button class="chip h-7" :class="face==='front' && 'chip-active'" @click="face='front'">Front</button><button class="chip h-7" :class="face==='rear' && 'chip-active'" @click="face='rear'">Rear</button></div>
+    </div>
+    <div class="card-body">
+      <div x-show="face==='front'">{% include "inventory/partials/rack_elevation.html" %}</div>
+      <div x-show="face==='rear'" x-cloak class="rack-frame grid place-items-center text-center text-xs text-muted" style="height: {{ rack.px|add:16 }}px">
+        <div>{% icon "layers" "size-6 mx-auto mb-2 text-faint" %}No rear-mounted devices<br>(PDUs and cable managers go here)</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card self-start lg:col-span-7 xl:col-span-8">
+    <div class="card-head"><h2 class="card-title">Devices in this rack</h2></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>U</th><th>Device</th><th class="hidden md:table-cell">Model</th><th>Mgmt IP</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for d in rack.items %}
+            <tr class="cursor-pointer" onclick="window.location='{% url 'ui:device_detail' d.id %}'">
+              <td class="mono text-muted">U{{ d.position_u }}{% if d.height_u > 1 %}–{{ d.top_u }}{% endif %}</td>
+              <td><span class="flex items-center gap-2.5"><span class="rack-device rk-{{ d.type }} static grid size-7 place-items-center p-0">{% icon d.icon "size-3.5" %}</span><span class="font-medium">{{ d.name }}</span></span></td>
+              <td class="hidden text-ink-2 md:table-cell">{{ d.manufacturer }} {{ d.model }}</td>
+              <td class="mono">{{ d.mgmt_ip|default:"—" }}</td>
+              <td>{% include "components/status_pill.html" with status=d.status %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="grid gap-3 border-t border-line p-5 sm:grid-cols-3">
+      <div class="inset p-3"><div class="text-xs text-muted">Free space</div><div class="mt-1 text-lg font-semibold">{{ rack.free }}U</div></div>
+      <div class="inset p-3"><div class="text-xs text-muted">Power feed</div><div class="mt-1 text-lg font-semibold">A + B</div></div>
+      <div class="inset p-3"><div class="text-xs text-muted">Location</div><div class="mt-1 text-lg font-semibold">{{ rack.location }}</div></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

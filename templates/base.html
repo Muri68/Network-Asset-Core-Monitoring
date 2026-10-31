@@ -1,0 +1,173 @@
+{% load static tailwind_cli %}<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}Dashboard{% endblock %} · NetCore</title>
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("theme"); } catch (e) {}
+      document.documentElement.dataset.theme = t || "dark";
+    })();
+  </script>
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  {% tailwind_css %}
+  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-dvh"
+      x-data="{ nav: false, palette: false }"
+      @keydown.window.ctrl.k.prevent="palette = true"
+      @keydown.window.meta.k.prevent="palette = true"
+      @keydown.window.escape="palette = false; nav = false">
+
+  {# ---------------- Sidebar ---------------- #}
+  <div x-show="nav" x-cloak x-transition.opacity class="fixed inset-0 z-40 bg-black/60 lg:hidden" @click="nav = false"></div>
+  <aside class="fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-line bg-frame transition-transform lg:translate-x-0"
+         :class="nav && 'translate-x-0'">
+    <div class="flex h-16 items-center gap-2.5 px-5">
+      {% include "components/logo.html" %}
+      <div class="min-w-0">
+        <div class="text-[15px] font-semibold tracking-tight">NetCore</div>
+        <div class="truncate text-[10px] text-muted">{{ org_name }}</div>
+      </div>
+      <button class="btn btn-ghost btn-icon ml-auto lg:hidden" @click="nav = false" aria-label="Close menu">{% icon "x" %}</button>
+    </div>
+
+    <div class="px-3">
+      <button type="button" @click="palette = true"
+              class="flex h-9 w-full items-center gap-2 rounded-lg border border-line bg-surface px-3 text-[13px] text-muted transition hover:border-line-strong">
+        {% icon "search" "size-4" %}
+        <span>Search…</span>
+        <kbd class="ml-auto rounded border border-line bg-surface-2 px-1.5 font-mono text-[10px] text-muted">⌘K</kbd>
+      </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-3 pb-4">
+      {% for section, links in nav %}
+        <div class="nav-section">{{ section }}</div>
+        <ul class="space-y-0.5">
+          {% for key, label, icon_name, url in links %}
+            <li>
+              <a href="{% url url %}" class="nav-link {% if active == key %}nav-link-active{% endif %}">
+                {% if active == key %}{% icon icon_name "size-4 text-accent" %}{% else %}{% icon icon_name "size-4" %}{% endif %}
+                <span>{{ label }}</span>
+                {% with badge=nav_badges|get:key %}
+                  {% if badge %}<span class="ml-auto rounded-md bg-down-soft px-1.5 text-[10px] font-bold text-down">{{ badge }}</span>{% endif %}
+                {% endwith %}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </nav>
+
+    <div class="border-t border-line p-3">
+      <div class="inset flex items-center gap-2.5 p-3">
+        <span class="dot dot-up"></span>
+        <div class="min-w-0 text-[11px] leading-tight">
+          <div class="font-medium text-ink">Checker running</div>
+          <div class="text-muted">{{ shell_counts.up }} up · {{ shell_counts.down }} down · 60s cycle</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  {# ---------------- Main ---------------- #}
+  <div class="lg:pl-64">
+    <header class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-bg/80 px-4 backdrop-blur sm:px-6 lg:px-8">
+      <button class="btn btn-ghost btn-icon -ml-2 lg:hidden" @click="nav = true" aria-label="Open menu">{% icon "menu" "size-5" %}</button>
+      <div class="min-w-0">
+        <div class="hidden text-[11px] text-muted sm:block">{% block crumb %}Monitoring{% endblock %}</div>
+        <div class="truncate text-[15px] font-semibold tracking-tight">{% block heading %}Dashboard{% endblock %}</div>
+      </div>
+
+      <div class="ml-auto flex items-center gap-1.5">
+        {% if shell_counts.down %}
+          <a href="{% url 'ui:monitors' %}?status=down" class="pill pill-down hidden sm:inline-flex">
+            <span class="dot dot-down"></span>{{ shell_counts.down }} down
+          </a>
+        {% endif %}
+        {% if shell_counts.unreachable %}
+          <a href="{% url 'ui:monitors' %}?status=unreachable" class="pill pill-unreach hidden md:inline-flex">
+            {{ shell_counts.unreachable }} unreachable
+          </a>
+        {% endif %}
+
+        <button class="btn btn-ghost btn-icon" @click="palette = true" aria-label="Search">{% icon "search" "size-[18px]" %}</button>
+        <button class="btn btn-ghost btn-icon" onclick="netcore.toggleTheme()" aria-label="Toggle theme">
+          <span class="dark:hidden">{% icon "moon" "size-[18px]" %}</span>
+          <span class="hidden dark:inline">{% icon "sun" "size-[18px]" %}</span>
+        </button>
+
+        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+          <button class="btn btn-ghost btn-icon relative" @click="open = !open" aria-label="Notifications">
+            {% icon "bell" "size-[18px]" %}
+            <span class="absolute top-2 right-2 size-2 rounded-full bg-down ring-2 ring-bg"></span>
+          </button>
+          <div x-show="open" x-cloak x-transition.origin.top.right
+               class="card absolute right-0 mt-2 w-80 overflow-hidden p-0">
+            <div class="card-head border-b border-line pb-3"><span class="card-title">Recent alerts</span>
+              <a class="link-more" href="{% url 'ui:incidents' %}">View all {% icon "arrow-up-right" "size-3" %}</a></div>
+            {% include "partials/alert_list.html" with compact=True %}
+          </div>
+        </div>
+
+        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+          <button class="flex items-center gap-2 rounded-lg border border-line bg-surface py-1 pr-2 pl-1 transition hover:border-line-strong" @click="open = !open">
+            {% include "components/avatar.html" with name=me.name size="size-7" %}
+            <span class="hidden text-left leading-tight md:block">
+              <span class="block text-xs font-semibold">{{ me.name }}</span>
+              <span class="block text-[10px] text-muted">{{ me.role }}</span>
+            </span>
+            {% icon "chevron-down" "size-3.5 text-muted" %}
+          </button>
+          <div x-show="open" x-cloak x-transition.origin.top.right class="card absolute right-0 mt-2 w-56 p-1.5">
+            <a href="{% url 'ui:profile' %}" class="nav-link">{% icon "user" %} My profile</a>
+            <a href="{% url 'ui:profile' %}#reveal-code" class="nav-link">{% icon "key-round" %} Reveal code</a>
+            <a href="{% url 'ui:settings' %}" class="nav-link">{% icon "settings" %} Settings</a>
+            <div class="my-1 border-t border-line"></div>
+            <a href="{% url 'ui:login' %}" class="nav-link text-down hover:text-down">{% icon "log-out" %} Sign out</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+      {% block page_header %}
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 class="text-xl font-semibold tracking-tight">{% block page_title %}{% endblock %}</h1>
+            <p class="mt-1 text-[13px] text-muted">{% block page_subtitle %}{% endblock %}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">{% block page_actions %}{% endblock %}</div>
+        </div>
+      {% endblock %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="mx-auto max-w-[1600px] px-4 pb-8 text-[11px] text-faint sm:px-6 lg:px-8">
+      NetCore · UI prototype with sample data — nothing on these pages is saved.
+    </footer>
+  </div>
+
+  {% include "partials/command_palette.html" %}
+
+  {# ---------------- Toasts ---------------- #}
+  <div class="pointer-events-none fixed right-4 bottom-4 z-[70] flex w-80 flex-col gap-2" x-data>
+    <template x-for="t in $store.toast.items" :key="t.id">
+      <div class="card pointer-events-auto flex items-start gap-3 p-3.5" x-transition>
+        <span class="dot mt-1.5" :class="'dot-' + t.tone"></span>
+        <p class="text-[13px] text-ink-2" x-text="t.message"></p>
+      </div>
+    </template>
+  </div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

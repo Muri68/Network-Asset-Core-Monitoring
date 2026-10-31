@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Subnet calculator{% endblock %}
+{% block crumb %}IP addressing{% endblock %}
+{% block heading %}Subnet calculator{% endblock %}
+{% block page_title %}Subnet calculator{% endblock %}
+{% block page_subtitle %}Type any IPv4 address with a prefix length to see the full breakdown.{% endblock %}
+
+{% block content %}
+<div x-data="{ cidr: '129.205.100.140/28', get s() { return netcore.subnet(this.cidr) } }" class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+  <section class="card lg:col-span-5">
+    <div class="card-head"><h2 class="card-title">Input</h2></div>
+    <div class="card-body space-y-4">
+      <div>
+        <label class="field-label">IP address / prefix</label>
+        <input x-model="cidr" class="input mono h-12 text-base" placeholder="192.168.1.0/24" autofocus>
+        <p class="field-error" x-show="cidr && !s">Enter an address like 10.0.0.0/24.</p>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        <template x-for="ex in ['129.205.100.140/28', '10.10.0.0/24', '10.20.0.0/22', '203.0.113.8/29', '192.168.1.10/31']">
+          <button type="button" class="chip mono" @click="cidr = ex" x-text="ex"></button>
+        </template>
+      </div>
+      <div x-show="s && s.hostBits" class="flex items-start gap-2 rounded-lg bg-warn-soft p-3 text-xs text-warn">
+        {% icon "triangle-alert" "size-4 shrink-0" %}
+        <span>The address you typed is a host inside the subnet. The network itself is <b class="mono" x-text="s && s.cidr"></b>, and that's what gets saved.</span>
+      </div>
+      <a href="{% url 'ui:prefixes' %}" class="btn w-full" x-show="s">{% icon "plus" %} Save as prefix</a>
+    </div>
+  </section>
+
+  <section class="card lg:col-span-7" x-show="s">
+    <div class="card-head"><h2 class="card-title">Result</h2><span class="pill" :class="s && s.kind === 'Public' ? 'pill-up' : 'pill-muted'" x-text="s && s.kind"></span></div>
+    <div class="card-body">
+      <template x-if="s">
+        <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div class="inset p-3"><div class="text-[11px] text-muted">Network</div><div class="mono mt-1 font-semibold" x-text="s.cidr"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">Netmask</div><div class="mono mt-1 font-semibold" x-text="s.netmask"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">Wildcard</div><div class="mono mt-1 font-semibold" x-text="s.wildcard"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">Gateway (typical)</div><div class="mono mt-1 font-semibold text-up" x-text="s.gateway"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">First usable</div><div class="mono mt-1 font-semibold" x-text="s.first"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">Last usable</div><div class="mono mt-1 font-semibold" x-text="s.last"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">Broadcast</div><div class="mono mt-1 font-semibold" x-text="s.broadcast"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">Total addresses</div><div class="mt-1 font-semibold tabular-nums" x-text="s.total"></div></div>
+          <div class="inset p-3"><div class="text-[11px] text-muted">Usable hosts</div><div class="mt-1 font-semibold tabular-nums" x-text="s.usable"></div></div>
+        </div>
+      </template>
+      <template x-if="s && s.hosts.length">
+        <div class="mt-5">
+          <div class="mb-2 text-xs font-semibold text-muted uppercase">All addresses</div>
+          <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            <template x-for="(h, i) in s.hosts" :key="h">
+              <div class="mono rounded-md border px-2 py-1.5 text-[11px]"
+                   :class="(i === 0 && s.prefixlen < 31) || (i === s.hosts.length - 1 && s.prefixlen < 31) ? 'border-maint/40 bg-maint-soft text-maint' : (h === s.gateway ? 'border-accent bg-up-soft text-up' : 'border-line bg-surface-2 text-ink-2')">
+                <span x-text="h"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </section>
+</div>
+{% endblock %}

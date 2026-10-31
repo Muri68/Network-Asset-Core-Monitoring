@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Add monitor{% endblock %}
+{% block crumb %}Monitoring / Monitors{% endblock %}
+{% block heading %}Add monitor{% endblock %}
+{% block page_title %}Add monitor{% endblock %}
+{% block page_subtitle %}Checks run from this server on the LAN. A monitor is marked down after the set number of failed checks in a row.{% endblock %}
+
+{% block content %}
+<form data-prototype="Monitor created" class="grid grid-cols-1 gap-4 lg:grid-cols-12" x-data="{ type: 'http' }">
+  <div class="space-y-4 lg:col-span-8">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">1 · Check type</h2></div>
+      <div class="card-body grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <template x-for="t in [
+          {k:'http', l:'HTTP(S)', h:'Status code of a URL'},
+          {k:'keyword', l:'HTTP keyword', h:'Page must contain text'},
+          {k:'ping', l:'Ping', h:'ICMP reachability'},
+          {k:'tcp', l:'TCP port', h:'Port is open'},
+          {k:'dns', l:'DNS record', h:'Resolves to expected value'},
+          {k:'ssl', l:'SSL certificate', h:'Days until expiry'}]" :key="t.k">
+          <button type="button" @click="type = t.k"
+                  class="rounded-xl border p-3.5 text-left transition"
+                  :class="type === t.k ? 'border-accent bg-up-soft' : 'border-line bg-surface-2 hover:border-line-strong'">
+            <div class="text-[13px] font-semibold" x-text="t.l"></div>
+            <div class="mt-0.5 text-xs text-muted" x-text="t.h"></div>
+          </button>
+        </template>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">2 · What to check</h2></div>
+      <div class="card-body grid gap-4 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="field-label">Friendly name</label>
+          <input class="input" placeholder="e.g. Customer portal" required>
+        </div>
+        <div class="sm:col-span-2" x-show="type === 'http' || type === 'keyword'">
+          <label class="field-label">URL</label>
+          <input class="input mono" placeholder="https://portal.acme.example/health">
+        </div>
+        <div x-show="type === 'ping' || type === 'tcp' || type === 'ssl'" :class="type === 'ping' && 'sm:col-span-2'">
+          <label class="field-label">Host or IP address</label>
+          <input class="input mono" placeholder="10.10.0.1">
+        </div>
+        <div x-show="type === 'tcp' || type === 'ssl'">
+          <label class="field-label">Port</label>
+          <input class="input mono" type="number" placeholder="443">
+        </div>
+        <div x-show="type === 'keyword'" class="sm:col-span-2">
+          <label class="field-label">Keyword that must appear</label>
+          <input class="input" placeholder="Welcome">
+          <p class="hint">Case-sensitive. The monitor goes down if the text is missing.</p>
+        </div>
+        <template x-if="type === 'http' || type === 'keyword'">
+          <div class="grid gap-4 sm:col-span-2 sm:grid-cols-3">
+            <div><label class="field-label">Method</label><select class="input"><option>GET</option><option>HEAD</option><option>POST</option></select></div>
+            <div><label class="field-label">Accepted status codes</label><input class="input mono" value="200-299"></div>
+            <div><label class="field-label">Certificate warning</label><select class="input"><option>14 days before</option><option>7 days before</option><option>30 days before</option></select></div>
+          </div>
+        </template>
+        <template x-if="type === 'dns'">
+          <div class="grid gap-4 sm:col-span-2 sm:grid-cols-3">
+            <div><label class="field-label">Hostname</label><input class="input mono" placeholder="acme.example"></div>
+            <div><label class="field-label">Record type</label><select class="input"><option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option><option>TXT</option></select></div>
+            <div><label class="field-label">Expected value</label><input class="input mono" placeholder="129.205.100.132"></div>
+          </div>
+        </template>
+        <div x-show="type === 'ssl'" class="sm:col-span-2">
+          <label class="field-label">Warn when certificate expires within</label>
+          <select class="input"><option>14 days</option><option>7 days</option><option>30 days</option></select>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">3 · Schedule</h2></div>
+      <div class="card-body grid gap-4 sm:grid-cols-3">
+        <div><label class="field-label">Check every</label><select class="input"><option>20 seconds</option><option>30 seconds</option><option selected>60 seconds</option><option>5 minutes</option></select></div>
+        <div><label class="field-label">Timeout</label><select class="input"><option>5 seconds</option><option selected>10 seconds</option><option>30 seconds</option></select></div>
+        <div><label class="field-label">Mark down after</label><select class="input"><option>2 failed checks</option><option selected>3 failed checks</option><option>5 failed checks</option></select></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="space-y-4 lg:col-span-4">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Link & dependencies</h2></div>
+      <div class="card-body space-y-4">
+        <div>
+          <label class="field-label">Device</label>
+          <select class="input"><option value="">— None —</option>{% for d in devices %}<option>{{ d.name }}</option>{% endfor %}</select>
+          <p class="hint">Shows this monitor on the device page.</p>
+        </div>
+        <div>
+          <label class="field-label">Depends on (parent)</label>
+          <select class="input"><option value="">— None —</option>{% for p in monitors %}<option>{{ p.name }} · {{ p.target }}</option>{% endfor %}</select>
+          <p class="hint">If the parent is down, this monitor shows <span class="text-unreach">unreachable</span> and won't send its own alert.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Alerts</h2></div>
+      <div class="card-body space-y-3 text-[13px]">
+        <label class="flex items-center justify-between gap-3"><span>Send Telegram alerts</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
+        <label class="flex items-center justify-between gap-3"><span>Alert when back up</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
+        <label class="flex items-center justify-between gap-3"><span>Reminder every 60 min while down</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
+      </div>
+    </section>
+
+    <div class="flex gap-2">
+      <a href="{% url 'ui:monitors' %}" class="btn flex-1">Cancel</a>
+      <button class="btn btn-primary flex-1">{% icon "check" %} Save monitor</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

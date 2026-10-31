@@ -1,0 +1,13 @@
+<form hx-post="{% url 'ui:credential_reveal' c.id %}" hx-target="this" hx-swap="outerHTML" class="space-y-4">
+  <div class="flex items-start gap-3">
+    <span class="icon-chip size-10 rounded-xl text-warn">{% icon "lock" "size-5" %}</span>
+    <div><div class="text-[13px] font-semibold">Enter your reveal code</div>
+      <p class="mt-0.5 text-xs text-muted">This is the code you created on your profile page, not your login password. This reveal will be logged.</p></div>
+  </div>
+  <div>
+    <input name="code" type="password" inputmode="numeric" autocomplete="one-time-code" class="input mono h-12 text-center text-lg tracking-[0.5em] {% if error %}border-down{% endif %}" placeholder="••••••" required autofocus>
+    {% if error %}<p class="field-error">Wrong reveal code. {{ remaining }} attempt{{ remaining|pluralize }} left before your vault is locked.</p>
+    {% else %}<p class="hint">Prototype: the demo reveal code is <span class="mono text-ink-2">123456</span>.</p>{% endif %}
+  </div>
+  <button class="btn btn-primary w-full">{% icon "eye" %} <span class="htmx-hide-on-request">Reveal password</span><span class="htmx-indicator">Checking…</span></button>
+</form>

@@ -1,0 +1,41 @@
+{{ search_index|json_script:"search-index" }}
+<div x-show="palette" x-cloak class="fixed inset-0 z-[60] flex items-start justify-center bg-black/60 p-4 pt-[12vh] backdrop-blur-sm"
+     x-transition.opacity
+     x-data="{
+       q: '', sel: 0,
+       all: JSON.parse(document.getElementById('search-index').textContent),
+       get results() {
+         const q = this.q.toLowerCase().trim();
+         const list = q ? this.all.filter(i => (i.label + ' ' + i.sub + ' ' + i.kind).toLowerCase().includes(q)) : this.all.filter(i => i.kind === 'Page');
+         return list.slice(0, 12);
+       },
+       go(i) { if (i) window.location = i.url; }
+     }"
+     x-effect="if (palette) { q = ''; sel = 0; $nextTick(() => $refs.q.focus()); }"
+     @click.self="palette = false">
+  <div class="card w-full max-w-xl overflow-hidden p-0" @keydown.arrow-down.prevent="sel = Math.min(sel + 1, results.length - 1)"
+       @keydown.arrow-up.prevent="sel = Math.max(sel - 1, 0)" @keydown.enter.prevent="go(results[sel])">
+    <div class="flex items-center gap-3 border-b border-line px-4">
+      {% icon "search" "size-4 text-muted" %}
+      <input x-ref="q" x-model="q" @input="sel = 0" class="h-14 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
+             placeholder="Search devices, IPs, monitors, credentials, pages…">
+      <kbd class="rounded border border-line bg-surface-2 px-1.5 font-mono text-[10px] text-muted">ESC</kbd>
+    </div>
+    <ul class="max-h-[50vh] overflow-y-auto p-2">
+      <template x-for="(item, idx) in results" :key="item.kind + item.label">
+        <li>
+          <a :href="item.url" @mouseenter="sel = idx"
+             class="flex items-center gap-3 rounded-lg px-3 py-2.5" :class="sel === idx ? 'bg-surface-3' : ''">
+            <span class="pill pill-muted w-20 justify-center" x-text="item.kind"></span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-[13px] font-medium" x-text="item.label"></span>
+              <span class="block truncate text-xs text-muted" x-text="item.sub"></span>
+            </span>
+            {% icon "arrow-right" "size-4 text-faint" %}
+          </a>
+        </li>
+      </template>
+      <li x-show="results.length === 0" class="px-3 py-8 text-center text-[13px] text-muted">No matches for “<span x-text="q"></span>”.</li>
+    </ul>
+  </div>
+</div>

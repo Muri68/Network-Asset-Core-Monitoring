@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Vault access log{% endblock %}
+{% block crumb %}Security / Password vault{% endblock %}
+{% block heading %}Access log{% endblock %}
+{% block page_title %}Vault access log{% endblock %}
+{% block page_subtitle %}Every reveal, copy, wrong code and lockout. This log can't be edited or deleted.{% endblock %}
+{% block page_actions %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endblock %}
+
+{% block content %}
+<div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+  <div class="card p-4"><div class="text-xs text-muted">Reveals (7 days)</div><div class="stat-num mt-3">14</div></div>
+  <div class="card p-4"><div class="text-xs text-muted">Copies (7 days)</div><div class="stat-num mt-3">9</div></div>
+  <div class="card p-4"><div class="text-xs text-muted">Wrong codes</div><div class="stat-num mt-3 text-down">5</div></div>
+  <div class="card p-4"><div class="text-xs text-muted">Locked users</div><div class="stat-num mt-3 text-down">1</div></div>
+</div>
+<section class="card overflow-hidden">
+  <ul class="divide-y divide-line">{% for r in log %}{% include "vault/partials/log_row.html" %}{% endfor %}</ul>
+</section>
+{% endblock %}

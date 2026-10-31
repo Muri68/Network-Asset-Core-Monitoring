@@ -1,0 +1,11 @@
+{% load humanize %}
+<li class="flex flex-wrap items-center gap-3 px-5 py-3">
+  {% include "components/avatar.html" with name=r.user size="size-7" %}
+  <div class="min-w-0 flex-1 text-[13px]">
+    <span class="font-medium">{{ r.user }}</span>
+    {% if r.action == "reveal" %}<span class="text-muted">revealed</span>{% elif r.action == "copy" %}<span class="text-muted">copied</span>{% elif r.action == "reveal_failed" %}<span class="text-down">entered a wrong code for</span>{% else %}<span class="text-down">was locked out on</span>{% endif %}
+    <a href="{% url 'ui:credential_detail' r.credential.id %}" class="font-medium hover:underline">{{ r.credential.name }}</a>
+  </div>
+  <span class="mono text-xs text-muted">{{ r.ip }}</span>
+  <span class="w-28 text-right text-xs text-faint">{{ r.time|naturaltime }}</span>
+</li>

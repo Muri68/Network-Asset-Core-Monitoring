@@ -1,0 +1,28 @@
+<section class="card" x-data>
+  <div class="card-head">
+    <div><h2 class="card-title">Preview · devices.xlsx</h2><p class="mt-0.5 text-xs text-muted">Nothing has been saved yet.</p></div>
+    <div class="flex gap-1.5"><span class="pill pill-up">{{ creates }} new</span><span class="pill pill-info">{{ updates }} update</span><span class="pill pill-down">{{ errors }} error{{ errors|pluralize }}</span></div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Row</th><th>Action</th><th>Name</th><th>Details</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td class="mono text-muted">{{ r.row }}</td>
+            <td>{% if r.action == "create" %}<span class="pill pill-up">Create</span>{% elif r.action == "update" %}<span class="pill pill-info">Update</span>{% else %}<span class="pill pill-down">Error</span>{% endif %}</td>
+            <td class="font-medium">{{ r.name }}</td>
+            <td class="{% if r.error %}text-down{% else %}text-ink-2{% endif %}">{{ r.error|default:r.detail }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
+    <p class="text-xs text-muted">Fix the {{ errors }} error rows and upload again, or import only the valid rows.</p>
+    <div class="flex gap-2">
+      <button class="btn" @click="$el.closest('section').remove()">Discard</button>
+      <button class="btn btn-primary" @click="$store.toast.show('{{ creates|add:updates }} rows imported — prototype only'); $el.closest('section').remove()">Import {{ creates|add:updates }} valid rows</button>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Incidents{% endblock %}
+{% block heading %}Incidents{% endblock %}
+{% block page_title %}Incidents{% endblock %}
+{% block page_subtitle %}Every outage with its cause, duration and who acknowledged it. Children of a down device are grouped under its incident.{% endblock %}
+{% block page_actions %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
+  <div class="xl:col-span-8">
+    <div class="mb-4 flex flex-wrap gap-2">
+      <a href="?" class="chip {% if not state %}chip-active{% endif %}">All</a>
+      <a href="?state=open" class="chip {% if state == 'open' %}chip-active{% endif %}"><span class="dot dot-down"></span>Open <span class="text-muted">{{ open_count }}</span></a>
+      <a href="?state=resolved" class="chip {% if state == 'resolved' %}chip-active{% endif %}"><span class="dot dot-up"></span>Resolved</a>
+    </div>
+
+    <section class="card overflow-hidden">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Incident</th><th>Status</th><th class="hidden md:table-cell">Started</th><th>Duration</th><th class="hidden lg:table-cell">Acknowledged</th><th></th></tr></thead>
+          <tbody>
+            {% for i in incidents %}
+              <tr>
+                <td>
+                  <div class="flex items-center gap-2"><span class="mono text-muted">#{{ i.id }}</span>
+                    <a href="{% url 'ui:monitor_detail' i.monitor.id %}" class="font-medium hover:underline">{{ i.monitor.name }}</a></div>
+                  <div class="mt-0.5 text-xs text-ink-2">{{ i.cause }}</div>
+                  {% if i.suppressed %}<div class="mt-1 flex items-center gap-1 text-xs text-unreach">{% icon "git-branch" "size-3" %} {{ i.suppressed }} dependent monitors suppressed</div>{% endif %}
+                </td>
+                <td>{% include "components/status_pill.html" with status=i.status %}</td>
+                <td class="hidden text-xs whitespace-nowrap md:table-cell">{{ i.started|date:"d M Y, H:i" }}<div class="text-muted">{{ i.started|naturaltime }}</div></td>
+                <td class="tabular-nums">{{ i.duration }}</td>
+                <td class="hidden lg:table-cell">{% if i.ack %}<span class="flex items-center gap-2">{% include "components/avatar.html" with name=i.ack size="size-6" %}<span class="text-[13px]">{{ i.ack }}</span></span>{% else %}<span class="text-faint">—</span>{% endif %}</td>
+                <td class="text-right" x-data>{% if i.status == "open" and not i.ack %}<button class="btn btn-sm" @click="$store.toast.show('Incident #{{ i.id }} acknowledged — prototype only')">Acknowledge</button>{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6">{% include "components/empty_state.html" with icon="circle-check" title="No incidents" text="Nothing matches this filter." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="card self-start xl:col-span-4">
+    <div class="card-head"><h2 class="card-title">Telegram delivery log</h2>{% icon "send" "size-4 text-muted" %}</div>
+    {% include "partials/alert_list.html" with alerts=alerts %}
+    <div class="border-t border-line px-5 py-3 text-xs text-muted">If the internet link is down, alerts wait in the outbox and are sent marked <span class="pill pill-warn">Delayed</span> once it's back.</div>
+  </section>
+</div>
+{% endblock %}

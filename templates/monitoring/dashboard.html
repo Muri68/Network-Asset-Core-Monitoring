@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Network overview{% endblock %}
+{% block page_subtitle %}Live status of {{ total }} monitors across {{ devices_total }} devices · refreshed every 10 seconds{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'ui:maintenance' %}" class="btn">{% icon "wrench" %} Schedule maintenance</a>
+  <a href="{% url 'ui:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  {% for w in maintenance_active %}
+    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-maint/30 bg-maint-soft px-4 py-3 text-[13px]">
+      {% icon "wrench" "size-4 text-maint" %}
+      <span class="font-medium text-maint">Maintenance in progress:</span>
+      <span class="text-ink-2">{{ w.name }} — {{ w.targets|join:", " }} · alerts muted until {{ w.end|time:"H:i" }}</span>
+      <a href="{% url 'ui:maintenance' %}" class="link-more ml-auto">Details {% icon "arrow-up-right" "size-3" %}</a>
+    </div>
+  {% endfor %}
+
+  {% include "partials/status_counters.html" %}
+
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    {# Health gauge #}
+    <section class="card lg:col-span-4">
+      <div class="card-head">
+        <h2 class="card-title">Network health</h2>
+        <span class="pill pill-muted">Last 24h</span>
+      </div>
+      <div class="card-body pt-2">
+        {% gauge health "Average uptime across all monitors" %}
+        <div class="mt-5 grid grid-cols-3 gap-2 text-center">
+          <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums">{{ up_count }}/{{ total }}</div><div class="text-[10px] text-muted">Monitors up</div></div>
+          <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums text-down">{{ open_incidents|length }}</div><div class="text-[10px] text-muted">Open incidents</div></div>
+          <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums">186<span class="text-[11px] text-muted"> ms</span></div><div class="text-[10px] text-muted">Avg web response</div></div>
+        </div>
+      </div>
+    </section>
+
+    {# Status rings #}
+    <section class="card lg:col-span-8">
+      <div class="card-head">
+        <h2 class="card-title">Status overview</h2>
+        <a href="{% url 'ui:monitors' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-cols-2 gap-y-6 py-3 sm:grid-cols-3 md:grid-cols-5">
+          {% ring counts.up total "Up" "up" %}
+          {% ring counts.down total "Down" "down" %}
+          {% ring counts.unreachable total "Unreachable" "unreach" %}
+          {% ring counts.maintenance total "Maintenance" "maint" %}
+          {% ring counts.paused|add:counts.pending total "Paused / pending" "warn" %}
+        </div>
+        <div class="mt-4 rounded-xl border border-line bg-surface-2 p-3.5">
+          <div class="flex items-start gap-3">
+            <span class="icon-chip text-unreach">{% icon "git-branch" "size-4" %}</span>
+            <div class="text-[13px]">
+              <div class="font-medium">Dependency suppression active</div>
+              <p class="mt-0.5 text-muted">
+                <span class="text-ink-2">CCTV switch</span> is down, so <span class="text-ink-2">{{ counts.unreachable }} devices</span> behind it are
+                marked unreachable. One alert was sent instead of {{ counts.unreachable|add:1 }}.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <section class="card lg:col-span-7">
+      <div class="card-head">
+        <h2 class="card-title">Daily uptime — last 14 days</h2>
+        <div class="flex items-center gap-3 text-[11px] text-muted">
+          <span class="flex items-center gap-1.5"><span class="dot dot-up"></span>≥ 99.5%</span>
+          <span class="flex items-center gap-1.5"><span class="dot dot-warn"></span>≥ 98%</span>
+          <span class="flex items-center gap-1.5"><span class="dot bg-down"></span>&lt; 98%</span>
+        </div>
+      </div>
+      <div class="card-body"><div class="h-64"><canvas data-chart="uptimeBars" data-source="chart-uptime"></canvas></div></div>
+      {{ chart_uptime|json_script:"chart-uptime" }}
+    </section>
+
+    <section class="card flex flex-col lg:col-span-5">
+      <div class="card-head">
+        <h2 class="card-title">Open incidents</h2>
+        <a href="{% url 'ui:incidents' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+      </div>
+      <div class="card-body flex-1 space-y-3">
+        {% for i in open_incidents %}
+          <div class="inset p-4">
+            <div class="flex items-start gap-3">
+              <span class="dot dot-down mt-1.5"></span>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <a href="{% url 'ui:monitor_detail' i.monitor.id %}" class="text-[13px] font-semibold hover:underline">{{ i.monitor.name }}</a>
+                  <span class="tag">{{ i.monitor.target }}</span>
+                </div>
+                <p class="mt-1 text-xs text-ink-2">{{ i.cause }}</p>
+                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+                  <span class="flex items-center gap-1">{% icon "clock" "size-3" %} Down for {{ i.duration }}</span>
+                  {% if i.suppressed %}<span class="flex items-center gap-1 text-unreach">{% icon "git-branch" "size-3" %} {{ i.suppressed }} children unreachable</span>{% endif %}
+                  {% if i.ack %}<span class="flex items-center gap-1">{% icon "check" "size-3" %} Ack by {{ i.ack }}</span>{% endif %}
+                </div>
+              </div>
+              {% if not i.ack %}<button class="btn btn-sm" x-data @click="$store.toast.show('Incident #{{ i.id }} acknowledged — prototype only')">Acknowledge</button>{% endif %}
+            </div>
+          </div>
+        {% empty %}
+          {% include "components/empty_state.html" with icon="circle-check" title="All clear" text="No open incidents right now." %}
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-3">
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">SSL certificates</h2>
+        <a href="{% url 'ui:monitors' %}?type=ssl" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+      </div>
+      <ul class="card-body space-y-1">
+        {% for m in ssl %}
+          <li class="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-2">
+            {% with tone=m.cert_days|days_tone %}
+              <span class="text-{{ tone }}">{% if tone == "up" %}{% icon "badge-check" "size-4" %}{% else %}{% icon "triangle-alert" "size-4" %}{% endif %}</span>
+              <span class="min-w-0 flex-1 truncate text-[13px]">{{ m.target|cut:"https://" }}</span>
+              <span class="text-xs font-semibold tabular-nums text-{{ tone }}">{{ m.cert_days }} days</span>
+            {% endwith %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">Inventory by type</h2>
+        <a href="{% url 'ui:devices' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+      </div>
+      <div class="card-body">
+        <div class="relative mx-auto size-44">
+          <canvas data-chart="donut" data-source="chart-types"></canvas>
+          <div class="pointer-events-none absolute inset-0 grid place-items-center text-center">
+            <div><div class="text-2xl font-semibold tabular-nums">{{ devices_total }}</div><div class="text-[10px] text-muted">Active devices</div></div>
+          </div>
+        </div>
+        {{ chart_types|json_script:"chart-types" }}
+        <ul class="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+          {% for label, value, tone, key in donut_legend %}
+            <li class="flex items-center gap-2"><span class="dot dot-{{ tone }}"></span><span class="text-ink-2">{{ label }}</span><span class="ml-auto font-semibold tabular-nums">{{ value }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2 class="card-title">Subnet utilisation</h2>
+        <a href="{% url 'ui:prefixes' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+      </div>
+      <ul class="card-body space-y-3.5">
+        {% for p in prefixes|slice:":6" %}
+          <li>
+            <a href="{% url 'ui:prefix_detail' p.id %}" class="group block">
+              <div class="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                <span class="mono text-ink-2 group-hover:text-ink">{{ p.cidr }}</span>
+                <span class="truncate text-muted">{{ p.desc }}</span>
+                <span class="ml-auto font-semibold tabular-nums">{{ p.pct }}%</span>
+              </div>
+              <div class="meter meter-{{ p.pct|pct_tone }}"><span style="width: {{ p.pct }}%"></span></div>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <section class="card lg:col-span-6">
+      <div class="card-head">
+        <h2 class="card-title">Web response time — last 24h</h2>
+        <span class="pill pill-muted">All HTTP monitors · avg</span>
+      </div>
+      <div class="card-body"><div class="h-56"><canvas data-chart="line" data-source="chart-response"></canvas></div></div>
+      {{ chart_response|json_script:"chart-response" }}
+    </section>
+
+    <section class="card lg:col-span-3">
+      <div class="card-head">
+        <h2 class="card-title">Telegram alerts</h2>
+        <a href="{% url 'ui:incidents' %}" class="link-more">All {% icon "arrow-up-right" "size-3" %}</a>
+      </div>
+      <div class="-mx-0 pb-2">{% include "partials/alert_list.html" %}</div>
+    </section>
+
+    <section class="card lg:col-span-3">
+      <div class="card-head">
+        <h2 class="card-title">Warranty expiring</h2>
+        <span class="pill pill-muted">90 days</span>
+      </div>
+      <ul class="card-body space-y-1">
+        {% for d in warranty %}
+          <li>
+            <a href="{% url 'ui:device_detail' d.id %}" class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface-2">
+              <span class="icon-chip size-7">{% icon d.icon "size-3.5" %}</span>
+              <span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium">{{ d.name }}</span><span class="block truncate text-[11px] text-muted">{{ d.model }}</span></span>
+              <span class="text-xs font-semibold tabular-nums text-{{ d.warranty_days|days_tone }}">{% if d.warranty_days < 0 %}Expired{% else %}{{ d.warranty_days }}d{% endif %}</span>
+            </a>
+          </li>
+        {% empty %}
+          <li class="py-6 text-center text-xs text-muted">Nothing expiring soon.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">Recent activity</h2>
+      <a href="{% url 'ui:audit' %}" class="link-more">Audit log {% icon "arrow-up-right" "size-3" %}</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <tbody>
+          {% for a in audit %}
+            {% with m=action_meta|get:a.action %}
+              <tr>
+                <td class="w-40 text-xs whitespace-nowrap text-muted">{{ a.time|naturaltime }}</td>
+                <td class="w-44 whitespace-nowrap"><span class="flex items-center gap-2">{% include "components/avatar.html" with name=a.actor size="size-6" %}<span class="text-[13px]">{{ a.actor }}</span></span></td>
+                <td class="w-44"><span class="pill pill-{{ m.1 }}">{{ m.0 }}</span></td>
+                <td class="text-ink-2">{{ a.object }}</td>
+                <td class="mono hidden text-right text-muted md:table-cell">{{ a.ip }}</td>
+              </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

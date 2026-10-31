@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Password vault{% endblock %}
+{% block crumb %}Security{% endblock %}
+{% block heading %}Password vault{% endblock %}
+{% block page_title %}Password vault{% endblock %}
+{% block page_subtitle %}{{ total }} credentials, encrypted at rest. Revealing a password needs your personal reveal code and is always logged.{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'ui:reveal_log' %}" class="btn">{% icon "history" %} Access log</a>
+  <button class="btn btn-primary" x-data @click="$dispatch('open-cred')">{% icon "plus" %} Add credential</button>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+  <aside class="space-y-4 lg:col-span-3">
+    <section class="card p-2">
+      <a href="?" class="nav-link {% if not folder %}nav-link-active{% endif %}">{% icon "folder-lock" %} All credentials <span class="ml-auto text-xs text-muted">{{ total }}</span></a>
+      {% for f in folders %}
+        <a href="?folder={{ f.id }}" class="nav-link {% if folder == f.id|stringformat:'s' %}nav-link-active{% endif %}">{% icon "folder" %} {{ f.name }} <span class="ml-auto text-xs text-muted">{{ f.count }}</span></a>
+      {% endfor %}
+    </section>
+    <section class="card p-4">
+      <div class="flex items-start gap-3">
+        <span class="icon-chip text-up">{% icon "shield-check" "size-4" %}</span>
+        <div class="text-xs leading-relaxed text-muted">
+          <div class="mb-1 text-[13px] font-medium text-ink">How the vault protects you</div>
+          Passwords are encrypted (AES via Fernet). They never appear in the page until you enter your reveal code. 5 wrong codes lock your vault and alert the Admins.
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <div class="space-y-4 lg:col-span-9">
+    <section class="card overflow-hidden">
+      <form method="get" class="flex flex-wrap items-center gap-2 border-b border-line p-3">
+        {% if folder %}<input type="hidden" name="folder" value="{{ folder }}">{% endif %}
+        <div class="relative min-w-56 flex-1">
+          <span class="pointer-events-none absolute top-2.5 left-3 text-faint">{% icon "search" %}</span>
+          <input name="q" value="{{ q }}" class="input pl-9" placeholder="Search name, username or host…">
+        </div>
+      </form>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Credential</th><th class="hidden md:table-cell">Device</th><th>Username</th><th class="hidden sm:table-cell">Password</th><th class="hidden lg:table-cell">Age</th><th class="hidden xl:table-cell">Last revealed</th></tr></thead>
+          <tbody>
+            {% for c in credentials %}
+              <tr class="cursor-pointer" onclick="window.location='{% url 'ui:credential_detail' c.id %}'">
+                <td><div class="flex items-center gap-3"><span class="icon-chip">{% icon "key-round" "size-4" %}</span><div><div class="font-medium">{{ c.name }}</div><div class="text-xs text-muted">{{ c.folder }} · {{ c.protocol|upper }}</div></div></div></td>
+                <td class="hidden md:table-cell">{% if c.device %}<span class="flex items-center gap-1.5 text-ink-2">{% icon c.device.icon "size-3.5 text-muted" %}{{ c.device.name }}</span>{% else %}<span class="text-faint">—</span>{% endif %}</td>
+                <td class="mono">{{ c.username }}</td>
+                <td class="hidden sm:table-cell"><span class="mono tracking-widest text-muted">••••••••••</span></td>
+                <td class="hidden lg:table-cell">{% if c.age_days > 90 %}<span class="pill pill-warn">{{ c.age_days }}d · rotate</span>{% else %}<span class="text-xs text-muted">{{ c.age_days }} days</span>{% endif %}</td>
+                <td class="hidden text-xs xl:table-cell">{% if c.last_by %}<span class="text-ink-2">{{ c.last_by }}</span><div class="text-muted">{{ c.last_at|naturaltime }}</div>{% else %}<span class="text-faint">Never</span>{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6">{% include "components/empty_state.html" with icon="key-round" title="No credentials" text="Nothing matches this folder or search." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Recent access</h2><a href="{% url 'ui:reveal_log' %}" class="link-more">Full log {% icon "arrow-up-right" "size-3" %}</a></div>
+      <ul class="divide-y divide-line">{% for r in recent %}{% include "vault/partials/log_row.html" %}{% endfor %}</ul>
+    </section>
+  </div>
+</div>
+
+<div x-data="{ open: false }" @open-cred.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+  <form data-prototype="Credential encrypted and saved" @prototype-submitted="open=false" @click.outside="open=false" class="card w-full max-w-lg p-0" x-data="{ show: false }">
+    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add credential</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
+    <div class="grid gap-4 p-5 sm:grid-cols-2">
+      <div class="sm:col-span-2"><label class="field-label">Name</label><input class="input" placeholder="Core switch 01 — enable" required></div>
+      <div><label class="field-label">Folder</label><select class="input">{% for f in folders %}<option>{{ f.name }}</option>{% endfor %}</select></div>
+      <div><label class="field-label">Protocol</label><select class="input"><option>SSH</option><option>HTTPS</option><option>Winbox</option><option>Telnet</option><option>Other</option></select></div>
+      <div><label class="field-label">Username</label><input class="input mono" autocomplete="off"></div>
+      <div><label class="field-label">Password</label>
+        <div class="relative"><input :type="show ? 'text' : 'password'" class="input mono pr-10" autocomplete="new-password">
+          <button type="button" class="absolute top-2 right-2 text-muted" @click="show=!show">{% icon "eye" %}</button></div></div>
+      <div class="sm:col-span-2"><label class="field-label">Host / URL</label><input class="input mono" placeholder="10.10.0.2"></div>
+      <div class="sm:col-span-2"><label class="field-label">Notes</label><textarea class="input" rows="2"></textarea><p class="hint">Notes are encrypted too.</p></div>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">{% icon "lock" %} Encrypt & save</button></div>
+  </form>
+</div>
+{% endblock %}

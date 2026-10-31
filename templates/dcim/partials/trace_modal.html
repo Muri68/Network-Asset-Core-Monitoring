@@ -1,0 +1,10 @@
+<div x-data="{ open: false }" @open-trace.window="open = true" x-show="open" x-cloak
+     class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm" x-transition.opacity>
+  <div @click.outside="open = false" class="card w-full max-w-3xl p-0">
+    <div class="card-head border-b border-line pb-4">
+      <div><h2 class="card-title">Cable trace</h2><p class="mt-0.5 text-xs text-muted">End-to-end path, including patch-panel pass-through.</p></div>
+      <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open = false">{% icon "x" %}</button>
+    </div>
+    <div id="trace-body" class="p-5"><div class="py-10 text-center text-xs text-muted">Loading trace…</div></div>
+  </div>
+</div>

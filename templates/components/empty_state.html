@@ -1,0 +1,6 @@
+<div class="flex flex-col items-center justify-center px-6 py-14 text-center">
+  <div class="icon-chip size-12 rounded-xl">{% icon icon|default:"search" "size-5" %}</div>
+  <h3 class="mt-4 text-sm font-semibold">{{ title }}</h3>
+  <p class="mt-1 max-w-sm text-[13px] text-muted">{{ text }}</p>
+  {% if action_url %}<a href="{{ action_url }}" class="btn btn-primary mt-5">{% icon "plus" %} {{ action_label }}</a>{% endif %}
+</div>

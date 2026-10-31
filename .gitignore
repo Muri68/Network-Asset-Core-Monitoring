@@ -218,3 +218,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- NetCore project ---
+.venv/
+.env
+staticfiles/
+db.sqlite3
+.DS_Store
+# Tailwind CLI binary (downloaded on first build) and built CSS
+.django_tailwind_cli/
+static/css/app.css
+# Local Claude Code session permissions
+.claude/

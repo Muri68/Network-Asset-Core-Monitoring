@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Monitors{% endblock %}
+{% block heading %}Monitors{% endblock %}
+{% block page_title %}Monitors{% endblock %}
+{% block page_subtitle %}{{ total }} monitors · checks every 30–60s · down after 3 failed checks in a row{% endblock %}
+{% block page_actions %}
+  <a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>
+  <a href="{% url 'ui:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-wrap items-center gap-2">
+  <a href="?" class="chip {% if not status %}chip-active{% endif %}">All <span class="text-muted">{{ total }}</span></a>
+  <a href="?status=down" class="chip {% if status == 'down' %}chip-active{% endif %}"><span class="dot dot-down"></span>Down <span class="text-muted">{{ counts.down }}</span></a>
+  <a href="?status=unreachable" class="chip {% if status == 'unreachable' %}chip-active{% endif %}"><span class="dot dot-unreach"></span>Unreachable <span class="text-muted">{{ counts.unreachable }}</span></a>
+  <a href="?status=pending" class="chip {% if status == 'pending' %}chip-active{% endif %}"><span class="dot dot-pending"></span>Pending <span class="text-muted">{{ counts.pending }}</span></a>
+  <a href="?status=maintenance" class="chip {% if status == 'maintenance' %}chip-active{% endif %}"><span class="dot dot-maint"></span>Maintenance <span class="text-muted">{{ counts.maintenance }}</span></a>
+  <a href="?status=up" class="chip {% if status == 'up' %}chip-active{% endif %}"><span class="dot dot-up"></span>Up <span class="text-muted">{{ counts.up }}</span></a>
+  <a href="?status=paused" class="chip {% if status == 'paused' %}chip-active{% endif %}"><span class="dot dot-paused"></span>Paused <span class="text-muted">{{ counts.paused }}</span></a>
+
+  <form method="get" class="ml-auto flex w-full gap-2 sm:w-auto">
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <select name="type" class="input w-auto" onchange="this.form.submit()">
+      <option value="">All types</option>
+      {% for key, label in types.items %}<option value="{{ key }}" {% if mtype == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <div class="relative flex-1 sm:w-64">
+      <span class="pointer-events-none absolute top-2.5 left-3 text-faint">{% icon "search" %}</span>
+      <input name="q" value="{{ q }}" class="input pl-9" placeholder="Search name or target…">
+    </div>
+  </form>
+</div>
+
+<section class="card overflow-hidden">
+  {% if monitors %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Monitor</th>
+          <th class="hidden xl:table-cell">Recent checks</th>
+          <th>Status</th>
+          <th class="hidden md:table-cell">Uptime 24h</th>
+          <th class="hidden md:table-cell">Response</th>
+          <th class="hidden lg:table-cell">Last check</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in monitors %}
+          <tr>
+            <td>
+              <a href="{% url 'ui:monitor_detail' m.id %}" class="group flex items-center gap-3">
+                <span class="icon-chip">{% if m.device %}{% icon m.device.icon "size-4" %}{% elif m.type == "dns" %}{% icon "globe" "size-4" %}{% else %}{% icon "shield-check" "size-4" %}{% endif %}</span>
+                <span class="min-w-0">
+                  <span class="block font-medium group-hover:underline">{{ m.name }}</span>
+                  <span class="flex items-center gap-2 text-xs text-muted"><span class="tag">{{ types|get:m.type }}</span><span class="mono truncate">{{ m.target }}</span></span>
+                  {% if m.cause %}<span class="mt-1 block text-xs text-{% if m.status == 'down' %}down{% elif m.status == 'unreachable' %}unreach{% else %}muted{% endif %}">{{ m.cause }}</span>{% endif %}
+                </span>
+              </a>
+            </td>
+            <td class="hidden xl:table-cell">{% include "components/heartbeats.html" with beats=m.heartbeats|slice:"-36:" %}</td>
+            <td>{% include "components/status_pill.html" with status=m.status %}</td>
+            <td class="hidden md:table-cell"><span class="font-semibold tabular-nums text-{{ m.uptime_24h|uptime_tone }}">{{ m.uptime_24h }}%</span></td>
+            <td class="hidden tabular-nums md:table-cell">{% if m.response_ms %}{{ m.response_ms }} ms{% else %}<span class="text-faint">—</span>{% endif %}</td>
+            <td class="hidden text-xs text-muted lg:table-cell">{{ m.last_check_s }}s ago</td>
+            <td class="text-right">
+              <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false">
+                <button class="btn btn-ghost btn-icon btn-sm" @click="open = !open" aria-label="Actions">{% icon "ellipsis" %}</button>
+                <div x-show="open" x-cloak x-transition class="card absolute right-0 z-20 mt-1 w-48 p-1.5 text-left">
+                  <a href="{% url 'ui:monitor_detail' m.id %}" class="nav-link">{% icon "eye" %} View details</a>
+                  <button class="nav-link w-full" @click="open=false; $store.toast.show('Check queued for {{ m.name }} — prototype only')">{% icon "refresh-cw" %} Check now</button>
+                  <button class="nav-link w-full" @click="open=false; $store.toast.show('{{ m.name }} paused — prototype only', 'paused')">{% icon "pause" %} Pause</button>
+                  <a href="{% url 'ui:maintenance' %}" class="nav-link">{% icon "wrench" %} Maintenance</a>
+                </div>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon="activity" title="No monitors match" text="Try another status, type or search term." %}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,23 @@
+<div class="relative mx-auto w-full max-w-[260px]">
+  <svg viewBox="0 0 200 118" class="w-full">
+    <defs>
+      <linearGradient id="gauge-grad" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0%" stop-color="var(--up)" stop-opacity=".15"/>
+        <stop offset="100%" stop-color="var(--up)"/>
+      </linearGradient>
+    </defs>
+    <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="var(--surface-3)" stroke-width="18" stroke-linecap="round"/>
+    <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="url(#gauge-grad)" stroke-width="18" stroke-linecap="round"
+          stroke-dasharray="{{ dash }} {{ arc }}" class="glow-up"/>
+    <path d="M38 100 A62 62 0 0 1 162 100" fill="none" stroke="var(--line-strong)" stroke-width="1" stroke-dasharray="1.5 4"/>
+    <g transform="rotate({{ angle }} 100 100)">
+      <path d="M97 100 L100 36 L103 100 Z" fill="var(--ink)"/>
+    </g>
+    <circle cx="100" cy="100" r="9" fill="var(--up)" class="glow-up"/>
+    <circle cx="100" cy="100" r="4" fill="var(--surface)"/>
+  </svg>
+  <div class="-mt-1 text-center">
+    <div class="text-2xl font-semibold tracking-tight tabular-nums">{{ percent|floatformat:2 }}%</div>
+    {% if caption %}<div class="mt-0.5 text-[11px] text-muted">{{ caption }}</div>{% endif %}
+  </div>
+</div>

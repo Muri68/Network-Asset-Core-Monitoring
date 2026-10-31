@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+{% block heading %}Not found{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="card">{% url 'ui:dashboard' as home %}{% include "components/empty_state.html" with icon="radar" title="Page not found" text="That page doesn't exist, or the item was removed." action_url=home action_label="Back to dashboard" %}</div>
+{% endblock %}

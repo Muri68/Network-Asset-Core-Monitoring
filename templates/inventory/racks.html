@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Racks{% endblock %}
+{% block crumb %}Infrastructure{% endblock %}
+{% block heading %}Racks{% endblock %}
+{% block page_title %}Racks{% endblock %}
+{% block page_subtitle %}HQ — Server Room · {{ racks|length }} racks. Click a device to open it.{% endblock %}
+{% block page_actions %}<button class="btn btn-primary" x-data @click="$store.toast.show('Add rack form — prototype only')">{% icon "plus" %} Add rack</button>{% endblock %}
+
+{% block content %}
+<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  {% for rack in racks %}
+    <section class="card flex flex-col">
+      <div class="card-head">
+        <div>
+          <a href="{% url 'ui:rack_detail' rack.id %}" class="card-title hover:underline">{{ rack.name }}</a>
+          <div class="mt-0.5 text-xs text-muted">{{ rack.location }} · {{ rack.height }}U · {{ rack.items|length }} devices</div>
+        </div>
+        <a href="{% url 'ui:rack_detail' rack.id %}" class="btn btn-sm">Open {% icon "arrow-up-right" "size-3" %}</a>
+      </div>
+      <div class="card-body">
+        <div class="mb-1.5 flex justify-between text-xs"><span class="text-muted">Space used</span><span class="font-semibold">{{ rack.used }}U / {{ rack.height }}U · {{ rack.pct }}%</span></div>
+        <div class="meter meter-{{ rack.pct|pct_tone }} mb-4"><span style="width: {{ rack.pct }}%"></span></div>
+        {% include "inventory/partials/rack_elevation.html" with compact=True %}
+      </div>
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}

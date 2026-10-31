@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}{{ m.name }}{% endblock %}
+{% block crumb %}Monitoring / Monitors{% endblock %}
+{% block heading %}{{ m.name }}{% endblock %}
+
+{% block page_header %}
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div class="flex items-start gap-4">
+    <span class="icon-chip size-12 rounded-xl">{% if m.device %}{% icon m.device.icon "size-5" %}{% else %}{% icon "globe" "size-5" %}{% endif %}</span>
+    <div>
+      <div class="flex flex-wrap items-center gap-2">
+        <h1 class="text-xl font-semibold tracking-tight">{{ m.name }}</h1>
+        {% include "components/status_pill.html" with status=m.status %}
+      </div>
+      <div class="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-muted">
+        <span class="tag">{{ types|get:m.type }}</span>
+        <span class="mono text-ink-2">{{ m.target }}</span>
+        {% if m.device %}<span>·</span><a class="hover:text-ink hover:underline" href="{% url 'ui:device_detail' m.device.id %}">{{ m.device.name }}</a>{% endif %}
+      </div>
+      {% if m.cause %}<p class="mt-2 text-[13px] text-{% if m.status == 'down' %}down{% elif m.status == 'unreachable' %}unreach{% else %}muted{% endif %}">{{ m.cause }} · since {{ m.since|naturaltime }}</p>{% endif %}
+    </div>
+  </div>
+  <div class="flex flex-wrap gap-2" x-data>
+    <button class="btn" @click="$store.toast.show('Check queued — prototype only')">{% icon "refresh-cw" %} Check now</button>
+    <button class="btn" @click="$store.toast.show('Monitor paused — prototype only', 'paused')">{% icon "pause" %} Pause</button>
+    <a href="{% url 'ui:monitor_new' %}" class="btn">{% icon "pencil" %} Edit</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+    <div class="card p-4"><div class="text-xs text-muted">Current response</div><div class="stat-num mt-3">{% if m.response_ms %}{{ m.response_ms }}<span class="text-sm text-muted"> ms</span>{% else %}—{% endif %}</div></div>
+    <div class="card p-4"><div class="text-xs text-muted">Avg response (24h)</div><div class="stat-num mt-3">{{ m.avg_ms }}<span class="text-sm text-muted"> ms</span></div></div>
+    <div class="card p-4"><div class="text-xs text-muted">Uptime 24h</div><div class="stat-num mt-3 text-{{ m.uptime_24h|uptime_tone }}">{{ m.uptime_24h }}%</div></div>
+    <div class="card p-4"><div class="text-xs text-muted">Uptime 30 days</div><div class="stat-num mt-3 text-{{ m.uptime_30d|uptime_tone }}">{{ m.uptime_30d }}%</div></div>
+    <div class="card p-4">
+      {% if m.cert_days is not None %}
+        <div class="text-xs text-muted">Certificate expires</div><div class="stat-num mt-3 text-{{ m.cert_days|days_tone }}">{{ m.cert_days }}<span class="text-sm text-muted"> days</span></div>
+      {% else %}
+        <div class="text-xs text-muted">Check interval</div><div class="stat-num mt-3">{{ m.interval }}<span class="text-sm text-muted"> s</span></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">Last 60 checks</h2>
+      <span class="text-xs text-muted">Every {{ m.interval }}s · last check {{ m.last_check_s }}s ago</span>
+    </div>
+    <div class="card-body overflow-x-auto">
+      {% include "components/heartbeats.html" with beats=m.heartbeats cls="h-9 [&>.beat]:w-auto [&>.beat]:flex-1 min-w-[480px]" %}
+      <div class="mt-2 flex justify-between text-[11px] text-faint"><span>1 hour ago</span><span>now</span></div>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <section class="card lg:col-span-8">
+      <div class="card-head">
+        <h2 class="card-title">Response time — last 24h</h2>
+        <div class="flex gap-1" x-data="{ r: '24h' }">
+          <button class="chip" :class="r==='24h' && 'chip-active'" @click="r='24h'">24h</button>
+          <button class="chip" :class="r==='7d' && 'chip-active'" @click="r='7d'">7d</button>
+          <button class="chip" :class="r==='30d' && 'chip-active'" @click="r='30d'">30d</button>
+        </div>
+      </div>
+      <div class="card-body"><div class="h-72"><canvas data-chart="line" data-source="chart-monitor"></canvas></div></div>
+      {{ chart|json_script:"chart-monitor" }}
+    </section>
+
+    <div class="space-y-4 lg:col-span-4">
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Dependency chain</h2></div>
+        <div class="card-body">
+          <ol class="relative space-y-2 before:absolute before:top-4 before:bottom-4 before:left-[15px] before:w-px before:bg-line-strong">
+            {% for p in chain %}
+              <li class="relative flex items-center gap-3">
+                <span class="z-10 grid size-8 place-items-center rounded-full border border-line bg-surface-2"><span class="dot dot-{% if p.status == 'unreachable' %}unreach{% elif p.status == 'maintenance' %}maint{% else %}{{ p.status }}{% endif %}"></span></span>
+                <a href="{% url 'ui:monitor_detail' p.id %}" class="min-w-0 flex-1 truncate text-[13px] text-ink-2 hover:text-ink">{{ p.name }}</a>
+                <span class="mono text-[11px] text-faint">{{ p.target }}</span>
+              </li>
+            {% endfor %}
+            <li class="relative flex items-center gap-3">
+              <span class="z-10 grid size-8 place-items-center rounded-full border border-accent bg-up-soft text-up">{% icon "circle-dot" "size-4" %}</span>
+              <span class="flex-1 text-[13px] font-semibold">{{ m.name }}</span>
+              <span class="pill pill-muted">This</span>
+            </li>
+          </ol>
+          {% if children %}
+            <div class="mt-4 border-t border-line pt-4">
+              <div class="mb-2 text-xs text-muted">{{ children|length }} dependent monitor{{ children|length|pluralize }}</div>
+              <div class="flex flex-wrap gap-1.5">
+                {% for c in children %}<a href="{% url 'ui:monitor_detail' c.id %}" class="chip"><span class="dot dot-{% if c.status == 'unreachable' %}unreach{% elif c.status == 'maintenance' %}maint{% else %}{{ c.status }}{% endif %}"></span>{{ c.name }}</a>{% endfor %}
+              </div>
+            </div>
+          {% endif %}
+          <p class="hint mt-4">If a parent is down, this monitor is marked <span class="text-unreach">unreachable</span> and no separate alert is sent.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Telegram alert preview</h2>{% icon "send" "size-4 text-muted" %}</div>
+        <div class="card-body">
+          <div class="rounded-2xl rounded-tl-sm border border-line bg-surface-2 p-3.5 font-mono text-[12px] leading-relaxed">
+            {% if m.status == "down" %}🔴 <b>DOWN</b>: {{ m.name }} ({{ m.type }} {{ m.target }})<br>Cause: {{ m.cause }}<br>Since: {{ m.since|date:"Y-m-d H:i" }}{% if children %}<br>Affected: {{ children|length }} dependent monitors{% endif %}
+            {% else %}🟢 <b>UP</b>: {{ m.name }} — was down 4m 10s<br>Target: {{ m.target }}{% endif %}
+          </div>
+          <p class="hint">Sent to 3 linked Telegram users · reminders every 60 min while down.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+    <section class="card lg:col-span-8">
+      <div class="card-head"><h2 class="card-title">Incident history</h2><a href="{% url 'ui:incidents' %}" class="link-more">All incidents {% icon "arrow-up-right" "size-3" %}</a></div>
+      {% if incidents %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>#</th><th>Status</th><th>Started</th><th>Duration</th><th>Cause</th></tr></thead>
+            <tbody>
+              {% for i in incidents %}
+                <tr><td class="mono text-muted">#{{ i.id }}</td><td>{% include "components/status_pill.html" with status=i.status %}</td>
+                  <td class="text-xs whitespace-nowrap">{{ i.started|date:"d M, H:i" }}</td><td class="tabular-nums">{{ i.duration }}</td><td class="text-ink-2">{{ i.cause }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        {% include "components/empty_state.html" with icon="circle-check" title="No incidents" text="This monitor has had no incidents in the last 90 days." %}
+      {% endif %}
+    </section>
+
+    <section class="card lg:col-span-4">
+      <div class="card-head"><h2 class="card-title">Configuration</h2></div>
+      <dl class="card-body grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+        <dt class="text-muted">Type</dt><dd>{{ types|get:m.type }}</dd>
+        <dt class="text-muted">Interval</dt><dd>{{ m.interval }} seconds</dd>
+        <dt class="text-muted">Timeout</dt><dd>{{ m.timeout }} seconds</dd>
+        <dt class="text-muted">Down after</dt><dd>{{ m.retries }} failed checks</dd>
+        <dt class="text-muted">Reminders</dt><dd>Every 60 min</dd>
+        {% if m.type == "http" or m.type == "keyword" %}<dt class="text-muted">Expected</dt><dd>HTTP 200–299</dd>{% endif %}
+        {% if m.type == "keyword" %}<dt class="text-muted">Keyword</dt><dd class="mono">"Welcome"</dd>{% endif %}
+        <dt class="text-muted">Created</dt><dd>{{ m.since|date:"d M Y" }}</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+{% endblock %}

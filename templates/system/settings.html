@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block crumb %}Administration{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}System-wide configuration. Every change is recorded in the audit log.{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-12" x-data="{ tab: 'general' }">
+  <nav class="card self-start p-2 lg:col-span-3">
+    <button class="nav-link w-full" :class="tab==='general' && 'nav-link-active'" @click="tab='general'">{% icon "sliders-horizontal" %} General</button>
+    <button class="nav-link w-full" :class="tab==='alerts' && 'nav-link-active'" @click="tab='alerts'">{% icon "send" %} Telegram alerts</button>
+    <button class="nav-link w-full" :class="tab==='monitoring' && 'nav-link-active'" @click="tab='monitoring'">{% icon "activity" %} Monitoring defaults</button>
+    <button class="nav-link w-full" :class="tab==='security' && 'nav-link-active'" @click="tab='security'">{% icon "shield" %} Security</button>
+    <button class="nav-link w-full" :class="tab==='backups' && 'nav-link-active'" @click="tab='backups'">{% icon "database" %} Backups <span class="ml-auto dot dot-warn"></span></button>
+  </nav>
+
+  <div class="lg:col-span-9">
+    <form data-prototype="General settings saved" x-show="tab==='general'" class="card">
+      <div class="card-head border-b border-line pb-4"><h2 class="card-title">General</h2></div>
+      <div class="grid gap-4 p-5 sm:grid-cols-2">
+        <div><label class="field-label">Organisation name</label><input class="input" value="{{ org_name }}"></div>
+        <div><label class="field-label">Time zone</label><select class="input"><option>UTC</option><option>Africa/Lagos (WAT, UTC+1)</option><option>Europe/London</option></select><p class="hint">Times are stored in UTC and shown in this zone.</p></div>
+        <div><label class="field-label">Date format</label><select class="input"><option>31 Oct 2026, 21:40</option><option>2026-10-31 21:40</option><option>10/31/2026 9:40 PM</option></select></div>
+        <div><label class="field-label">Default location</label><select class="input"><option>HQ — Server Room</option><option>HQ — Campus</option></select></div>
+      </div>
+      <div class="flex justify-end border-t border-line px-5 py-4"><button class="btn btn-primary">Save changes</button></div>
+    </form>
+
+    <form data-prototype="Alert settings saved" x-show="tab==='alerts'" x-cloak class="card">
+      <div class="card-head border-b border-line pb-4"><h2 class="card-title">Telegram alerts</h2><span class="pill pill-up"><span class="dot dot-up"></span>Bot connected</span></div>
+      <div class="grid gap-4 p-5 sm:grid-cols-2">
+        <div class="sm:col-span-2"><label class="field-label">Bot token</label>
+          <div class="flex gap-2"><input class="input mono" value="••••••••••:••••••••••••••••••••••••" disabled><button type="button" class="btn">Replace</button></div>
+          <p class="hint">Created with @BotFather. Stored encrypted. Bot: <span class="mono text-ink-2">@acme_netcore_bot</span></p></div>
+        <div><label class="field-label">Reminder while down</label><select class="input"><option>Every 30 minutes</option><option selected>Every 60 minutes</option><option>Every 4 hours</option><option>Never</option></select></div>
+        <div><label class="field-label">Recipients</label><select class="input"><option>Admins + Engineers with linked Telegram</option><option>Admins only</option></select></div>
+        <div class="sm:col-span-2 grid gap-3 text-[13px]">
+          <label class="flex items-center justify-between gap-3"><span>Send recovery ("back up") alerts</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
+          <label class="flex items-center justify-between gap-3"><span>Group child devices under the parent alert</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
+          <label class="flex items-center justify-between gap-3"><span>Notify Admins when a user's vault is locked</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
+        </div>
+        <div class="rounded-xl border border-line bg-surface-2 p-3.5 text-xs text-muted sm:col-span-2">
+          {% icon "info" "size-3.5 mr-1 inline" %} The server only needs <b>outbound</b> HTTPS to api.telegram.org. Nothing is exposed to the internet.
+        </div>
+      </div>
+      <div class="flex justify-between border-t border-line px-5 py-4"><button type="button" class="btn" @click="$store.toast.show('Test alert sent — prototype only')">{% icon "send" %} Send test alert</button><button class="btn btn-primary">Save changes</button></div>
+    </form>
+
+    <form data-prototype="Monitoring defaults saved" x-show="tab==='monitoring'" x-cloak class="card">
+      <div class="card-head border-b border-line pb-4"><h2 class="card-title">Monitoring defaults</h2></div>
+      <div class="grid gap-4 p-5 sm:grid-cols-3">
+        <div><label class="field-label">Default interval</label><select class="input"><option>30 seconds</option><option selected>60 seconds</option><option>5 minutes</option></select></div>
+        <div><label class="field-label">Default timeout</label><select class="input"><option>5 seconds</option><option selected>10 seconds</option></select></div>
+        <div><label class="field-label">Down after</label><select class="input"><option>2 failures</option><option selected>3 failures</option><option>5 failures</option></select></div>
+        <div><label class="field-label">Keep raw results</label><select class="input"><option>7 days</option><option selected>30 days</option><option>90 days</option></select></div>
+        <div><label class="field-label">Daily summaries</label><select class="input"><option selected>Forever</option><option>2 years</option></select></div>
+        <div><label class="field-label">SSL warning</label><select class="input"><option>7 days</option><option selected>14 days</option><option>30 days</option></select></div>
+      </div>
+      <div class="flex justify-end border-t border-line px-5 py-4"><button class="btn btn-primary">Save changes</button></div>
+    </form>
+
+    <form data-prototype="Security settings saved" x-show="tab==='security'" x-cloak class="card">
+      <div class="card-head border-b border-line pb-4"><h2 class="card-title">Security</h2><span class="pill pill-info">{% icon "lock" "size-3" %} LAN-only deployment</span></div>
+      <div class="grid gap-4 p-5 sm:grid-cols-2">
+        <div><label class="field-label">Log out after inactivity</label><select class="input"><option>15 minutes</option><option selected>30 minutes</option><option>60 minutes</option></select></div>
+        <div><label class="field-label">Login attempts before lockout</label><select class="input"><option>3</option><option selected>5</option><option>10</option></select></div>
+        <div><label class="field-label">Wrong reveal codes before vault lock</label><select class="input"><option>3</option><option selected>5</option></select></div>
+        <div><label class="field-label">Revealed password visible for</label><select class="input"><option>15 seconds</option><option selected>30 seconds</option><option>60 seconds</option></select></div>
+        <div class="sm:col-span-2"><label class="field-label">Two-factor authentication</label><select class="input"><option selected>Required for all users</option><option>Required for Admins only</option></select></div>
+        <div class="sm:col-span-2 rounded-xl border border-line bg-surface-2 p-3.5 text-xs text-muted">Vault encryption key: <span class="mono text-ink-2">v2</span> (rotated 14 Aug 2026). Rotate it from the server with <span class="mono text-ink-2">manage.py vault_rotate_key</span>.</div>
+      </div>
+      <div class="flex justify-end border-t border-line px-5 py-4"><button class="btn btn-primary">Save changes</button></div>
+    </form>
+
+    <div x-show="tab==='backups'" x-cloak class="card">
+      <div class="card-head border-b border-line pb-4"><h2 class="card-title">Backups</h2><span class="pill pill-warn">{% icon "triangle-alert" "size-3" %} Off-server target not set</span></div>
+      <div class="space-y-4 p-5">
+        <div class="flex items-start gap-3 rounded-xl border border-warn/30 bg-warn-soft p-4 text-[13px]">
+          {% icon "triangle-alert" "size-4 mt-0.5 shrink-0 text-warn" %}
+          <div><div class="font-medium text-warn">Backups are only stored on this server</div>
+            <p class="mt-1 text-ink-2">If this server's disk fails, the inventory, history and vault are lost. Add the NAS as a backup target once it's ready. Keep a separate offline copy of the vault key.</p></div>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div class="inset p-3"><div class="text-xs text-muted">Last backup</div><div class="mt-1 font-semibold">Today, 02:00</div></div>
+          <div class="inset p-3"><div class="text-xs text-muted">Schedule</div><div class="mt-1 font-semibold">Nightly · keep 14</div></div>
+          <div class="inset p-3"><div class="text-xs text-muted">Size</div><div class="mt-1 font-semibold">48 MB</div></div>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div><label class="field-label">NAS share (SMB / NFS)</label><input class="input mono" placeholder="//nas.lan/backups/netcore"></div>
+          <div><label class="field-label">Username</label><input class="input"></div>
+        </div>
+        <div class="flex justify-end gap-2"><button class="btn" x-data @click="$store.toast.show('Backup started — prototype only')">{% icon "refresh-cw" %} Back up now</button><button class="btn btn-primary" x-data @click="$store.toast.show('NAS target saved — prototype only')">Save NAS target</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

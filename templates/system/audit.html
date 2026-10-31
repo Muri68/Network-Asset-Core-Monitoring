@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Audit log{% endblock %}
+{% block crumb %}Security{% endblock %}
+{% block heading %}Audit log{% endblock %}
+{% block page_title %}Audit log{% endblock %}
+{% block page_subtitle %}Everything that happens in NetCore: logins, changes (with before and after values), reveals, imports and exports. Append-only.{% endblock %}
+{% block page_actions %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endblock %}
+
+{% block content %}
+<section class="card overflow-hidden">
+  <form method="get" class="flex flex-wrap items-center gap-2 border-b border-line p-3">
+    <div class="relative min-w-56 flex-1">
+      <span class="pointer-events-none absolute top-2.5 left-3 text-faint">{% icon "search" %}</span>
+      <input name="q" value="{{ q }}" class="input pl-9" placeholder="Search object or user…">
+    </div>
+    <select name="actor" class="input w-auto" onchange="this.form.submit()">
+      <option value="">All users</option>
+      {% for a in actors %}<option {% if actor == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <select name="action" class="input w-auto" onchange="this.form.submit()">
+      <option value="">All actions</option>
+      {% for key, m in meta.items %}<option value="{{ key }}" {% if action == key %}selected{% endif %}>{{ m.0 }}</option>{% endfor %}
+    </select>
+    <input type="date" class="input w-auto">
+  </form>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>When</th><th>User</th><th>Action</th><th>Object</th><th class="hidden md:table-cell">IP address</th><th></th></tr></thead>
+      {% for a in entries %}
+        {% with m=meta|get:a.action %}
+        <tbody x-data="{ open: false }" class="border-b border-line last:border-0 [&>tr>td]:border-0">
+          <tr {% if a.changes %}class="cursor-pointer" @click="open = !open"{% endif %}>
+            <td class="text-xs whitespace-nowrap">{{ a.time|date:"d M, H:i:s" }}<div class="text-muted">{{ a.time|naturaltime }}</div></td>
+            <td class="whitespace-nowrap"><span class="flex items-center gap-2">{% include "components/avatar.html" with name=a.actor size="size-6" %}{{ a.actor }}</span></td>
+            <td><span class="pill pill-{{ m.1 }}">{{ m.0 }}</span></td>
+            <td class="text-ink-2">{{ a.object }}</td>
+            <td class="mono hidden text-muted md:table-cell">{{ a.ip }}</td>
+            <td class="w-10 text-right text-muted">{% if a.changes %}<span class="inline-block transition" :class="open && 'rotate-180'">{% icon "chevron-down" %}</span>{% endif %}</td>
+          </tr>
+          {% if a.changes %}
+            <tr x-show="open" x-cloak class="hover:bg-transparent">
+              <td colspan="6" class="pt-0">
+                <div class="inset overflow-x-auto p-3">
+                  <table class="w-full text-xs">
+                    <thead><tr class="text-left text-muted"><th class="pb-2 font-medium">Field</th><th class="pb-2 font-medium">Before</th><th class="pb-2 font-medium">After</th></tr></thead>
+                    <tbody>{% for f, ch in a.changes.items %}<tr><td class="mono py-1 pr-6 text-ink-2">{{ f }}</td><td class="mono py-1 pr-6 text-down">{{ ch.0|default:"∅" }}</td><td class="mono py-1 text-up">{{ ch.1 }}</td></tr>{% endfor %}</tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+        {% endwith %}
+      {% empty %}
+        <tbody><tr><td colspan="6">{% include "components/empty_state.html" with icon="scroll-text" title="No entries" text="Nothing matches these filters." %}</td></tr></tbody>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="flex items-center justify-between border-t border-line px-4 py-3 text-xs text-muted">
+    <span>Showing {{ entries|length }} of 9,841 entries</span>
+    <div class="flex gap-1"><button class="btn btn-sm" disabled>{% icon "chevron-left" "size-3.5" %}</button><button class="btn btn-sm">{% icon "chevron-right" "size-3.5" %}</button></div>
+  </div>
+</section>
+{% endblock %}

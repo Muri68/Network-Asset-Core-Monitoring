@@ -1,0 +1,38 @@
+{% load static tailwind_cli %}<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Sign in{% endblock %} · NetCore</title>
+  <script>
+    (function () { var t = null; try { t = localStorage.getItem("theme"); } catch (e) {} document.documentElement.dataset.theme = t || "dark"; })();
+  </script>
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  {% tailwind_css %}
+  <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+</head>
+<body class="min-h-dvh">
+  <div class="grid min-h-dvh lg:grid-cols-2">
+    <div class="relative hidden overflow-hidden border-r border-line bg-frame p-10 lg:flex lg:flex-col">
+      <div class="flex items-center gap-2.5">{% include "components/logo.html" %}<span class="text-[15px] font-semibold">NetCore</span></div>
+      <div class="my-auto max-w-md">
+        <h2 class="text-3xl leading-tight font-semibold tracking-tight">See your whole network <span class="text-up">at a glance.</span></h2>
+        <p class="mt-4 text-[15px] text-muted">Uptime, IP blocks, racks, every port and cable, and a password vault that logs every access.</p>
+        <div class="mt-10 grid grid-cols-3 gap-3">
+          <div class="card p-4"><div class="text-xs text-muted">Monitors</div><div class="stat-num mt-2 text-up">26</div></div>
+          <div class="card p-4"><div class="text-xs text-muted">Devices</div><div class="stat-num mt-2">30</div></div>
+          <div class="card p-4"><div class="text-xs text-muted">Uptime</div><div class="stat-num mt-2">99.9%</div></div>
+        </div>
+      </div>
+      <div class="text-xs text-faint">Accessible on the local network only.</div>
+      <div class="pointer-events-none absolute -right-40 -bottom-40 size-[520px] rounded-full bg-up/10 blur-3xl"></div>
+    </div>
+    <div class="flex items-center justify-center p-6">
+      <div class="w-full max-w-sm">
+        <div class="mb-8 flex items-center gap-2.5 lg:hidden">{% include "components/logo.html" %}<span class="text-[15px] font-semibold">NetCore</span></div>
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
