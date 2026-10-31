@@ -117,3 +117,24 @@ def parse_attributes(post):
 
 
 DEVICE_TYPE_CHOICES = DeviceType.choices
+
+
+class DeviceModelForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = DeviceModel
+        fields = ["manufacturer", "name", "device_type", "height_u", "port_template"]
+        widgets = {"port_template": forms.Textarea(attrs={
+            "rows": 6, "class": "input mono", "placeholder": "GigabitEthernet1/0/[1-48]\nTenGigabitEthernet1/1/[1-4]",
+        })}
+        help_texts = {"port_template": "One pattern per line. New devices of this model get these ports automatically; "
+                                       "existing devices can add them from their Ports tab."}
+
+    def clean_port_template(self):
+        from apps.dcim.patterns import PatternError, expand_lines
+
+        text = self.cleaned_data["port_template"]
+        try:
+            expand_lines(text)
+        except PatternError as e:
+            raise forms.ValidationError(str(e)) from e
+        return text

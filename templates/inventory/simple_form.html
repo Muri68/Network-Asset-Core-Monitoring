@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ title }}{% endblock %}
-{% block crumb %}Infrastructure / Racks{% endblock %}
+{% block crumb %}{{ crumb|default:"Infrastructure / Racks" }}{% endblock %}
 {% block heading %}{{ title }}{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 {% block content %}

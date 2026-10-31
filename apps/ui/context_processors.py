@@ -16,8 +16,9 @@ NAV = [
     ("Infrastructure", [
         ("devices", "Devices", "server", "inventory:devices", "view"),
         ("racks", "Racks", "layers", "inventory:racks", "view"),
-        ("connections", "Connections", "cable", "ui:connections", "view"),
-        ("vlans", "VLANs", "hash", "ui:vlans", "view"),
+        ("models", "Device models", "box", "inventory:device_models", "view"),
+        ("connections", "Connections", "cable", "dcim:connections", "view"),
+        ("vlans", "VLANs", "hash", "dcim:vlans", "view"),
     ]),
     ("IP addressing", [
         ("prefixes", "Prefixes & IPs", "globe", "ui:prefixes", "view"),

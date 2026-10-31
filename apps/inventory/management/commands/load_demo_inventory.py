@@ -7,7 +7,8 @@ from apps.ui import fake_data as fd
 
 
 class Command(BaseCommand):
-    help = "Load the sample locations, racks and devices from the UI prototype (only into an empty inventory)."
+    help = ("Load the sample locations, racks, devices, VLANs, ports and cables from the UI prototype "
+            "(only into an empty inventory).")
 
     @transaction.atomic
     def handle(self, *args, **opts):
@@ -51,6 +52,50 @@ class Command(BaseCommand):
                     device = created[d["id"]]
                     device.parent = created[d["parent_id"]]
                     device.save()
+            vlans, ports, cables = self._load_ports_and_cables(created)
         self.stdout.write(self.style.SUCCESS(
-            f"Loaded {len(locations)} locations, {len(racks)} racks and {len(created)} devices."
+            f"Loaded {len(locations)} locations, {len(racks)} racks, {len(created)} devices, "
+            f"{vlans} VLANs, {ports} ports and {cables} cables."
         ))
+
+    def _load_ports_and_cables(self, devices_by_fake_id):
+        from apps.dcim.models import VLAN, Connection, ExternalEndpoint
+        from apps.dcim.services import apply_model_template, set_port_vlans
+
+        vlans = {v["vid"]: VLAN.objects.create(vid=v["vid"], name=v["name"], description=v["desc"])
+                 for v in fd.VLANS if v["vid"] != 1}
+        # Port templates per model, taken from the prototype's port lists.
+        port_count = 0
+        for fake in fd.DEVICES:
+            device = devices_by_fake_id[fake["id"]]
+            model = device.device_model
+            if not model.port_template:
+                names = [n for n in fd._port_names(fake) if not n.endswith("(rear)")]
+                model.port_template = "\n".join(names)
+                model.save()
+            created, _ = apply_model_template(device)
+            port_count += len(created)
+
+        by_name = {d.name: d for d in devices_by_fake_id.values()}
+        cables = 0
+        for c in fd.CONNECTIONS:
+            a_port = by_name[c["a_device"]["name"]].ports.get(name=c["a_port"])
+            connection = Connection(a_port=a_port, function=c["function"], cable_label=c["cable"], remark=c["remark"])
+            if c["b_device"]:
+                connection.b_port = by_name[c["b_device"]["name"]].ports.get(name=c["b_port"])
+            else:
+                connection.b_external, _ = ExternalEndpoint.objects.get_or_create(name=c["b_external"])
+            connection.full_clean()
+            connection.save()
+            cables += 1
+            ids = [int(v) for v in c["vlans"].split(",") if v.strip().isdigit()] if c["vlans"] != "all" else list(vlans)
+            for port in filter(None, (connection.a_port, connection.b_port)):
+                if c["mode"] in ("access", "trunk", "routed"):
+                    port.mode = c["mode"]
+                if c["mode"] == "access" and ids:
+                    set_port_vlans(port, vlans.get(ids[0]), [])
+                elif c["mode"] == "trunk":
+                    set_port_vlans(port, None, [vlans[v] for v in ids if v in vlans])
+                else:
+                    port.save()
+        return len(vlans), port_count, cables

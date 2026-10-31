@@ -3,10 +3,9 @@
 {% block crumb %}Infrastructure{% endblock %}
 {% block heading %}Connections{% endblock %}
 {% block page_title %}Connections{% endblock %}
-{% block page_subtitle %}Every cable in one place: {{ total }} connections. Each one also shows on both devices.{% endblock %}
+{% block page_subtitle %}Every cable in one place: {{ total }} connection{{ total|pluralize }}. Each one also shows on both devices' Ports tab.{% endblock %}
 {% block page_actions %}
-  {% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export port map</a>{% endif %}
-{% if can.edit %}  <button class="btn btn-primary" x-data @click="$dispatch('open-connect')">{% icon "plus" %} Add connection</button>{% endif %}
+  {% if can.edit %}<a href="{% url 'dcim:connection_new' %}" class="btn btn-primary">{% icon "plus" %} Add connection</a>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -14,39 +13,61 @@
   <form method="get" class="flex flex-wrap items-center gap-2 border-b border-line p-3">
     <div class="relative min-w-56 flex-1">
       <span class="pointer-events-none absolute top-2.5 left-3 text-faint">{% icon "search" %}</span>
-      <input name="q" value="{{ q }}" class="input pl-9" placeholder="Search device, function, VLAN…">
+      <input name="q" value="{{ q }}" class="input pl-9" placeholder="Search device, port, function, cable label or VLAN ID…">
     </div>
-    <select name="mode" class="input w-auto" onchange="this.form.submit()">
-      <option value="">Any mode</option>
-      <option value="trunk" {% if mode == "trunk" %}selected{% endif %}>Trunk</option>
-      <option value="access" {% if mode == "access" %}selected{% endif %}>Access</option>
-      <option value="routed" {% if mode == "routed" %}selected{% endif %}>Routed</option>
+    <select name="device" class="input w-auto" onchange="this.form.submit()" aria-label="Device">
+      <option value="">All devices</option>
+      {% for d in devices %}<option value="{{ d.pk }}" {% if device == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
     </select>
+    {% if racks %}
+      <select name="rack" class="input w-auto" onchange="this.form.submit()" aria-label="Rack">
+        <option value="">All racks</option>
+        {% for r in racks %}<option value="{{ r.pk }}" {% if rack == r.pk|stringformat:'s' %}selected{% endif %}>{{ r.location }} · {{ r.name }}</option>{% endfor %}
+      </select>
+    {% endif %}
+    {% if query %}<a href="{% url 'dcim:connections' %}" class="btn btn-ghost btn-sm">Clear</a>{% endif %}
   </form>
+
+  {% if connections %}
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th>Side A</th><th></th><th>Side B</th><th>Function</th><th class="hidden md:table-cell">Mode</th><th class="hidden lg:table-cell">VLANs</th><th class="hidden xl:table-cell">Cable</th><th></th></tr></thead>
+      <thead><tr><th>Side A</th><th></th><th>Side B</th><th>Function</th><th class="hidden md:table-cell">Mode / VLANs</th><th class="hidden xl:table-cell">Cable</th><th></th></tr></thead>
       <tbody>
         {% for c in connections %}
           <tr>
-            <td><a href="{% url 'inventory:devices' %}?status=all&q={{ c.a_device.name|urlencode }}" class="hover:underline"><span class="font-medium">{{ c.a_device.name }}</span></a><div class="mono text-xs text-muted">{{ c.a_port }}</div></td>
+            <td><a href="{{ c.a_port.device.get_absolute_url }}?tab=ports" class="hover:underline"><span class="font-medium">{{ c.a_port.device }}</span></a><div class="mono text-xs text-muted">{{ c.a_port.name }}</div></td>
             <td class="w-8 text-faint">{% icon "arrow-left-right" "size-4" %}</td>
-            <td>{% if c.b_device %}<a href="{% url 'inventory:devices' %}?status=all&q={{ c.b_device.name|urlencode }}" class="hover:underline"><span class="font-medium">{{ c.b_device.name }}</span></a><div class="mono text-xs text-muted">{{ c.b_port }}</div>
+            <td>{% if c.b_port %}<a href="{{ c.b_port.device.get_absolute_url }}?tab=ports" class="hover:underline"><span class="font-medium">{{ c.b_port.device }}</span></a><div class="mono text-xs text-muted">{{ c.b_port.name }}</div>
                 {% else %}<span class="flex items-center gap-1.5 text-ink-2">{% icon "globe" "size-3.5 text-muted" %}{{ c.b_external }}</span>{% endif %}</td>
             <td class="text-ink-2">{{ c.function }}{% if c.remark %}<div class="text-xs text-muted">{{ c.remark }}</div>{% endif %}</td>
-            <td class="hidden md:table-cell">{% if c.mode == "trunk" %}<span class="pill pill-maint">Trunk</span>{% elif c.mode == "access" %}<span class="pill pill-muted">Access</span>{% else %}<span class="pill pill-warn">Routed</span>{% endif %}</td>
-            <td class="mono hidden text-ink-2 lg:table-cell">{{ c.vlans }}</td>
-            <td class="mono hidden text-muted xl:table-cell">{{ c.cable }}</td>
-            <td class="text-right" x-data><button class="btn btn-ghost btn-sm" hx-get="{% url 'ui:connection_trace' c.id %}" hx-target="#trace-body" @click="$dispatch('open-trace')">{% icon "waypoints" "size-3.5" %} Trace</button></td>
+            <td class="hidden md:table-cell">{% include "dcim/partials/mode_pill.html" with mode=c.a_port.mode %}<div class="mono mt-1 text-xs text-muted">{{ c.vlans }}</div></td>
+            <td class="hidden xl:table-cell"><span class="mono text-ink-2">{{ c.cable_label|default:"—" }}</span>{% if c.cable_type %}<div class="text-xs text-muted">{{ c.get_cable_type_display }}{% if c.length_m %} · {{ c.length_m }} m{% endif %}</div>{% endif %}</td>
+            <td class="text-right whitespace-nowrap" x-data>
+              <button class="btn btn-ghost btn-sm" hx-get="{% url 'dcim:connection_trace' c.pk %}" hx-target="#trace-body" @click="$dispatch('open-trace')">{% icon "waypoints" "size-3.5" %} Trace</button>
+              {% if can.edit %}<a class="btn btn-ghost btn-icon btn-sm" href="{% url 'dcim:connection_edit' c.pk %}" aria-label="Edit">{% icon "pencil" "size-3.5" %}</a>{% endif %}
+            </td>
           </tr>
-        {% empty %}
-          <tr><td colspan="8">{% include "components/empty_state.html" with icon="cable" title="No connections match" text="Try another search." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% if page.paginator.num_pages > 1 %}
+    <div class="flex items-center justify-between border-t border-line px-4 py-3 text-xs text-muted">
+      <span>Showing {{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }}</span>
+      <div class="flex gap-1">
+        {% if page.has_previous %}<a class="btn btn-sm" href="?{% if query %}{{ query }}&{% endif %}page={{ page.previous_page_number }}">{% icon "chevron-left" "size-3.5" %}</a>{% endif %}
+        <span class="btn btn-sm pointer-events-none">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a class="btn btn-sm" href="?{% if query %}{{ query }}&{% endif %}page={{ page.next_page_number }}">{% icon "chevron-right" "size-3.5" %}</a>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+  {% elif total %}
+    {% include "components/empty_state.html" with icon="search" title="No connections match" text="Try another search or filter." %}
+  {% else %}
+    {% if can.edit %}{% url 'dcim:connection_new' as new_url %}{% endif %}
+    {% include "components/empty_state.html" with icon="cable" title="No connections yet" text="Record a cable once — e.g. firewall port1 → switch Gi1/0/10 — and it shows on both devices." action_url=new_url action_label="Add connection" %}
+  {% endif %}
 </section>
 
-{% if can.edit %}{% include "dcim/partials/connect_modal.html" %}{% endif %}
 {% include "dcim/partials/trace_modal.html" %}
 {% endblock %}

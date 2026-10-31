@@ -1,0 +1,3 @@
+{% if not device %}<option value="">— Choose a device first —</option>
+{% elif not ports %}<option value="">{{ device }} has no ports yet</option>
+{% else %}<option value="">— Choose a port —</option>{% for p, taken in ports %}<option value="{{ p.pk }}" {% if taken %}disabled{% endif %} {% if keep == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.name }}{% if taken %} (connected){% endif %}</option>{% endfor %}{% endif %}

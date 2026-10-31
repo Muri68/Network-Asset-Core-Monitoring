@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ model }}{% endblock %}
+{% block crumb %}Infrastructure / Device models{% endblock %}
+{% block heading %}{{ model }}{% endblock %}
+{% block page_title %}{{ model }}{% endblock %}
+{% block page_subtitle %}Changing the template doesn't touch existing devices; they can add missing ports from their Ports tab.{% endblock %}
+{% block content %}
+<form method="post" class="card max-w-3xl" novalidate>
+  {% csrf_token %}
+  <div class="grid gap-4 p-5 sm:grid-cols-2">
+    <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+    {% include "components/field.html" with field=form.manufacturer %}
+    {% include "components/field.html" with field=form.name %}
+    {% include "components/field.html" with field=form.device_type %}
+    {% include "components/field.html" with field=form.height_u %}
+    <div class="sm:col-span-2">
+      <label class="field-label" for="id_port_template">Port template</label>
+      <textarea name="port_template" id="id_port_template" rows="6" class="input mono" aria-invalid="{% if form.port_template.errors %}true{% else %}false{% endif %}"
+                placeholder="GigabitEthernet1/0/[1-48]&#10;TenGigabitEthernet1/1/[1-4]"
+                hx-get="{% url 'dcim:pattern_preview' %}" hx-trigger="load, input changed delay:300ms" hx-target="#template-preview">{{ form.port_template.value|default:'' }}</textarea>
+      <div id="template-preview"></div>
+      {% for e in form.port_template.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+      <p class="hint">{{ form.port_template.help_text }} Patch panels automatically get a paired rear port for each.</p>
+    </div>
+  </div>
+  <div class="flex justify-end gap-2 border-t border-line px-5 py-4">
+    <a href="{% url 'inventory:device_models' %}" class="btn">Cancel</a>
+    <button class="btn btn-primary">Save model</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,3 @@
+{% if error %}<p class="field-error">{{ error }}</p>
+{% elif names %}<p class="hint"><span class="text-ink-2">{{ names|length }} port{{ names|length|pluralize }}:</span> <span class="mono">{{ names.0 }}{% if names|length > 1 %} … {{ names|last }}{% endif %}</span></p>
+{% else %}<p class="hint">Nothing to create yet.</p>{% endif %}

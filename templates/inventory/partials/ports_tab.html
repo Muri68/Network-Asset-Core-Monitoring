@@ -1,0 +1,105 @@
+{# Device page → Ports & connections. Context from dcim.views.device_ports_context. #}
+{% if ports %}
+  <section class="card mb-4">
+    <div class="card-head">
+      <h2 class="card-title">Front panel</h2>
+      <div class="flex flex-wrap items-center gap-3 text-[11px] text-muted">
+        <span class="flex items-center gap-1.5"><span class="port port-up h-3 w-3"></span>Connected</span>
+        <span class="flex items-center gap-1.5"><span class="port port-empty h-3 w-3"></span>Free</span>
+        <span class="flex items-center gap-1.5"><span class="port port-disabled h-3 w-3"></span>Disabled</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="overflow-x-auto rounded-xl border border-line-strong bg-frame p-3">
+        <div class="flex w-max flex-col gap-1.5">
+          {% for row in panel_rows %}
+            <div class="flex gap-1.5">
+              {% for p in row %}
+                <a href="#port-{{ p.pk }}" class="port port-{{ p.state }}" title="{{ p.name }}{% if p.peer %} → {{ p.peer }}{% elif p.external %} → {{ p.external }}{% endif %}{% if p.conn %} · {{ p.conn.function }}{% endif %}">{{ p.short_name }}</a>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <p class="hint mt-2">Hover a port for what it connects to; click to jump to it in the table.</p>
+    </div>
+  </section>
+{% endif %}
+
+<section class="card overflow-hidden" x-data="{ onlyConnected: false }">
+  <div class="flex flex-wrap items-center gap-2 border-b border-line p-3">
+    <span class="text-[13px] font-semibold">{{ ports|length }} port{{ ports|length|pluralize }} · {{ connected }} connected</span>
+    {% if ports %}<label class="ml-3 flex items-center gap-2 text-[13px] text-ink-2"><input type="checkbox" x-model="onlyConnected" class="size-4 accent-[var(--accent)]"> Connected only</label>{% endif %}
+    {% if can.edit %}
+      <div class="ml-auto flex flex-wrap gap-2">
+        {% if has_template %}
+          <form method="post" action="{% url 'dcim:ports_apply_template' d.pk %}">{% csrf_token %}
+            <button class="btn btn-sm" title="Create the ports listed in the {{ d.device_model }} template">{% icon "layers" "size-3.5" %} Ports from model template</button></form>
+        {% endif %}
+        <button class="btn btn-sm" @click="$dispatch('open-bulk-ports')">{% icon "plus" "size-3.5" %} Add ports</button>
+        {% if ports %}<a href="{% url 'dcim:connection_new' %}?return_device={{ d.pk }}" class="btn btn-primary btn-sm">{% icon "cable" "size-3.5" %} Add connection</a>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  {% if ports %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Port</th><th>Connected to</th><th>Function</th><th class="hidden md:table-cell">Mode</th><th class="hidden md:table-cell">VLANs</th><th class="hidden lg:table-cell">Speed</th><th class="hidden xl:table-cell">Remark</th><th></th></tr></thead>
+      <tbody>
+        {% for p in ports %}
+          <tr id="port-{{ p.pk }}" {% if not p.conn %}x-show="!onlyConnected"{% endif %} class="scroll-mt-24 target:bg-up-soft">
+            <td><span class="flex items-center gap-2"><span class="port port-{{ p.state }} h-3 w-3"></span><span class="mono font-medium">{{ p.name }}</span></span>
+              {% if p.label %}<div class="text-xs text-muted">{{ p.label }}</div>{% endif %}
+              {% if p.paired_port %}<div class="text-[11px] text-muted">↔ {{ p.paired_port.name }}</div>{% endif %}</td>
+            <td>
+              {% if p.peer %}<a href="{{ p.peer.device.get_absolute_url }}?tab=ports" class="flex items-center gap-1.5 hover:underline">{% icon p.peer.device.icon "size-3.5 text-muted" %}<span class="font-medium whitespace-nowrap">{{ p.peer.device }}</span><span class="mono text-muted">{{ p.peer.name }}</span></a>
+              {% elif p.external %}<span class="flex items-center gap-1.5 text-ink-2">{% icon "globe" "size-3.5 text-muted" %}{{ p.external }}</span>
+              {% else %}<span class="text-faint">—</span>{% endif %}
+            </td>
+            <td class="text-ink-2">{% if p.conn %}{{ p.conn.function }}{% if p.conn.cable_label %}<div class="mono text-xs text-muted">{{ p.conn.cable_label }}</div>{% endif %}{% else %}<span class="text-faint">—</span>{% endif %}</td>
+            <td class="hidden md:table-cell">{% include "dcim/partials/mode_pill.html" with mode=p.mode %}</td>
+            <td class="mono hidden text-xs text-ink-2 md:table-cell">{{ p.vlans }}</td>
+            <td class="hidden text-muted lg:table-cell">{{ p.get_speed_display }}</td>
+            <td class="hidden text-xs text-muted xl:table-cell">{{ p.remark }}{% if not p.enabled %} <span class="pill pill-muted">Disabled</span>{% endif %}</td>
+            <td class="text-right whitespace-nowrap" x-data>
+              {% if p.conn %}
+                <button class="btn btn-ghost btn-sm" hx-get="{% url 'dcim:connection_trace' p.conn.pk %}" hx-target="#trace-body" @click="$dispatch('open-trace')">{% icon "waypoints" "size-3.5" %} Trace</button>
+                {% if can.edit %}<a class="btn btn-ghost btn-sm" href="{% url 'dcim:connection_edit' p.conn.pk %}?return_device={{ d.pk }}">{% icon "cable" "size-3.5" %} Cable</a>{% endif %}
+              {% elif can.edit and p.enabled %}
+                <a class="btn btn-ghost btn-sm" href="{% url 'dcim:connection_new' %}?a_port={{ p.pk }}&return_device={{ d.pk }}">{% icon "cable" "size-3.5" %} Connect</a>
+              {% endif %}
+              {% if can.edit %}<a class="btn btn-ghost btn-icon btn-sm" href="{% url 'dcim:port_edit' p.pk %}" aria-label="Edit port {{ p.name }}">{% icon "pencil" "size-3.5" %}</a>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon="ethernet-port" title="No ports yet" text="Add ports from a pattern like GigabitEthernet1/0/[1-48], or set a port template on the device model so new devices get their ports automatically." %}
+  {% endif %}
+</section>
+
+{% if can.edit %}
+<div x-data="{ open: false }" @open-bulk-ports.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+  <form method="post" action="{% url 'dcim:ports_bulk_add' d.pk %}" @click.outside="open=false" class="card w-full max-w-lg p-0" novalidate>
+    {% csrf_token %}
+    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add ports to {{ d.name }}</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
+    <div class="grid gap-4 p-5 sm:grid-cols-3">
+      <div class="sm:col-span-3">
+        <label class="field-label" for="id_patterns">Port names *</label>
+        <textarea name="patterns" id="id_patterns" rows="3" class="input mono" placeholder="GigabitEthernet1/0/[1-48]&#10;TenGigabitEthernet1/1/[1-4]"
+                  hx-get="{% url 'dcim:pattern_preview' %}" hx-trigger="input changed delay:300ms" hx-target="#pattern-preview"></textarea>
+        <div id="pattern-preview"><p class="hint">{{ bulk_form.patterns.help_text }}</p></div>
+      </div>
+      {% include "components/field.html" with field=bulk_form.type %}
+      {% include "components/field.html" with field=bulk_form.speed %}
+      {% include "components/field.html" with field=bulk_form.mode %}
+      <label class="flex items-center gap-2 text-[13px] sm:col-span-3">{{ bulk_form.pair_rear }} {{ bulk_form.pair_rear.label }}</label>
+      <p class="hint sm:col-span-3">Names that already exist are skipped.</p>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Add ports</button></div>
+  </form>
+</div>
+{% endif %}

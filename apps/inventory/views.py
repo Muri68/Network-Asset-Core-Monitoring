@@ -10,8 +10,10 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import capability_required
 from apps.audit.models import AuditLog
+from apps.dcim.models import Port
+from apps.dcim.views import device_ports_context
 
-from .forms import DeviceForm, LocationForm, RackForm, parse_attributes
+from .forms import DeviceForm, DeviceModelForm, LocationForm, RackForm, parse_attributes
 from .models import DEVICE_ICONS, Device, DeviceAttribute, DeviceModel, DeviceType, Location, Manufacturer, Rack
 
 UNIT_PX = 22
@@ -88,11 +90,14 @@ def device_detail(request, pk):
     )
     ct_device = ContentType.objects.get_for_model(Device)
     ct_attr = ContentType.objects.get_for_model(DeviceAttribute)
+    ct_port = ContentType.objects.get_for_model(Port)
+    # The device itself, plus its attributes and ports (their names start with "<device> · ").
     history = AuditLog.objects.filter(
         Q(object_type=ct_device, object_id=str(device.pk))
-        | Q(object_type=ct_attr, object_repr__startswith=f"{device.name} · ")
+        | Q(object_type__in=[ct_attr, ct_port], object_repr__startswith=f"{device.name} · ")
     ).select_related("object_type")[:50]
     return render(request, "inventory/device_detail.html", {
+        **device_ports_context(device),
         "d": device,
         "attributes": device.attributes.all(),
         "children": device.children.exclude(status=Device.Status.RETIRED).select_related("device_model"),
@@ -134,6 +139,16 @@ def _device_form_page(request, form, device=None, attributes=None, attr_errors=(
     }, status=400 if form.is_bound else 200)
 
 
+def _ports_from_template(device):
+    from apps.dcim.patterns import PatternError
+    from apps.dcim.services import apply_model_template
+
+    try:
+        return apply_model_template(device)
+    except PatternError:
+        return [], []
+
+
 @capability_required("edit")
 def device_create(request):
     if request.method == "POST":
@@ -141,7 +156,9 @@ def device_create(request):
         attributes, attr_errors = parse_attributes(request.POST)
         if form.is_valid() and not attr_errors:
             device = _save_device(request, form, attributes)
-            messages.success(request, f"{device.name} added.")
+            created, _ = _ports_from_template(device)
+            extra = f" {len(created)} ports created from the model template." if created else ""
+            messages.success(request, f"{device.name} added.{extra}")
             return redirect(device)
         return _device_form_page(request, form, attributes=attributes, attr_errors=attr_errors)
     initial = {}
@@ -310,3 +327,32 @@ def rack_check(request):
             if clash:
                 result["problem"] = "Overlaps " + ", ".join(f"{d.name} (U{d.position_u}–U{d.top_u})" for d in clash)
     return render(request, "inventory/partials/rack_check.html", result)
+
+
+# --------------------------------------------------------------------------
+# Device models (port templates)
+# --------------------------------------------------------------------------
+
+
+def device_models(request):
+    from apps.dcim.patterns import PatternError, expand_lines
+
+    models = DeviceModel.objects.select_related("manufacturer").annotate(device_count=Count("devices"))
+    for m in models:
+        try:
+            m.port_count = len(expand_lines(m.port_template))
+        except PatternError:
+            m.port_count = None
+    return render(request, "inventory/device_models.html", {"models": models, "active": "models"})
+
+
+@capability_required("edit")
+def device_model_edit(request, pk):
+    model = get_object_or_404(DeviceModel, pk=pk)
+    form = DeviceModelForm(request.POST or None, instance=model)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"{model} saved.")
+        return redirect("inventory:device_models")
+    return render(request, "inventory/device_model_form.html", {"form": form, "model": model, "active": "models"},
+                  status=400 if form.is_bound else 200)

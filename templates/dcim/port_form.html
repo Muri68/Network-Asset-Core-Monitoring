@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ port }}{% endblock %}
+{% block crumb %}Infrastructure / Devices / {{ port.device }}{% endblock %}
+{% block heading %}Port {{ port.name }}{% endblock %}
+{% block page_title %}Port {{ port.name }} on {{ port.device }}{% endblock %}
+{% block page_subtitle %}{% if connection %}Connected: {{ connection }} — {{ connection.function }}{% else %}Not connected.{% endif %}{% endblock %}
+
+{% block content %}
+<form method="post" class="grid grid-cols-1 gap-4 lg:grid-cols-12" novalidate x-data="{ mode: '{{ form.mode.value|default:'' }}' }">
+  {% csrf_token %}
+  <section class="card lg:col-span-8">
+    <div class="card-head"><h2 class="card-title">Port</h2></div>
+    <div class="card-body grid gap-4 sm:grid-cols-2">
+      <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+      {% include "components/field.html" with field=form.name %}
+      {% include "components/field.html" with field=form.label %}
+      {% include "components/field.html" with field=form.type %}
+      {% include "components/field.html" with field=form.speed %}
+      <div>
+        <label class="field-label" for="id_mode">Mode</label>
+        <select name="mode" id="id_mode" class="input" x-model="mode">{% for v, l in form.mode.field.choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+      </div>
+      <label class="flex items-center gap-2 self-end pb-2 text-[13px]">{{ form.enabled }} Enabled (unticked = shut down)</label>
+      {% include "components/field.html" with field=form.remark cls="sm:col-span-2" %}
+    </div>
+  </section>
+  <section class="card self-start lg:col-span-4">
+    <div class="card-head"><h2 class="card-title">VLANs</h2></div>
+    <div class="card-body space-y-3">
+      {% include "components/field.html" with field=form.untagged_vlan %}
+      <div x-show="mode === 'trunk'">
+        <span class="field-label">Tagged VLANs</span>
+        <div class="max-h-60 space-y-1 overflow-y-auto rounded-lg border border-line bg-surface-2 p-2 text-[13px]">
+          {% for choice in form.tagged_vlans %}<label class="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-surface-3">{{ choice.tag }} <span class="mono">{{ choice.choice_label }}</span></label>
+          {% empty %}<p class="px-1 text-xs text-muted">No VLANs yet. <a class="text-up hover:underline" href="{% url 'dcim:vlans' %}">Add some</a>.</p>{% endfor %}
+        </div>
+      </div>
+      <p class="hint" x-show="mode !== 'trunk'">Tagged VLANs apply to trunk ports.</p>
+    </div>
+  </section>
+  <div class="flex flex-wrap justify-between gap-2 lg:col-span-12">
+    <button type="submit" form="delete-port" class="btn btn-ghost text-down">{% icon "trash-2" %} Delete port</button>
+    <div class="flex gap-2"><a href="{% url 'inventory:device_detail' port.device.pk %}?tab=ports" class="btn">Cancel</a><button class="btn btn-primary">Save port</button></div>
+  </div>
+</form>
+<form id="delete-port" method="post" action="{% url 'dcim:port_delete' port.pk %}" onsubmit="return confirm('Delete port {{ port.name|escapejs }}?{% if connection %} Its cable will be disconnected.{% endif %}')">{% csrf_token %}</form>
+{% endblock %}

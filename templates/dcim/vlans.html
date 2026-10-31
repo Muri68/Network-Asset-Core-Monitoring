@@ -3,32 +3,47 @@
 {% block crumb %}Infrastructure{% endblock %}
 {% block heading %}VLANs{% endblock %}
 {% block page_title %}VLANs{% endblock %}
-{% block page_subtitle %}{{ vlans|length }} VLANs used across switches, firewall trunks and access ports.{% endblock %}
+{% block page_subtitle %}{{ vlans|length }} VLAN{{ vlans|length|pluralize }}. Counts show how many ports use each one as access/untagged or tagged on a trunk.{% endblock %}
 {% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-vlan')">{% icon "plus" %} Add VLAN</button>{% endif %}{% endblock %}
 
 {% block content %}
+{% if vlans %}
 <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
   {% for v in vlans %}
-    <article class="card p-5">
+    <article class="card flex flex-col p-5">
       <div class="flex items-start justify-between gap-3">
         <div class="grid size-11 place-items-center rounded-xl border border-line bg-surface-2 font-mono text-[15px] font-semibold">{{ v.vid }}</div>
-        <span class="pill pill-muted">{{ v.devices }} device{{ v.devices|pluralize }}</span>
+        <span class="pill pill-muted">{% if v.location %}{{ v.location }}{% else %}Global{% endif %}</span>
       </div>
       <h3 class="mt-4 text-[15px] font-semibold">{{ v.name }}</h3>
-      <p class="mt-1 text-xs text-muted">{{ v.desc }}</p>
-      <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs"><span class="text-muted">Subnet</span><span class="mono text-ink-2">{{ v.subnet }}</span></div>
+      <p class="mt-1 text-xs text-muted">{{ v.description|default:"No description" }}</p>
+      <div class="mt-auto flex items-center justify-between gap-2 border-t border-line pt-3 text-xs">
+        <a href="{% url 'dcim:connections' %}?q={{ v.vid }}" class="text-muted hover:text-ink">{{ v.access_count }} untagged · {{ v.trunk_count }} tagged</a>
+        {% if can.edit %}
+          <span class="flex gap-1">
+            <a href="{% url 'dcim:vlan_edit' v.pk %}" class="btn btn-ghost btn-icon btn-sm" aria-label="Edit VLAN {{ v.vid }}">{% icon "pencil" "size-3.5" %}</a>
+            <form method="post" action="{% url 'dcim:vlan_delete' v.pk %}" onsubmit="return confirm('Delete VLAN {{ v.vid }}? It will be removed from any ports using it.')">{% csrf_token %}
+              <button class="btn btn-ghost btn-icon btn-sm text-down" aria-label="Delete VLAN {{ v.vid }}">{% icon "trash-2" "size-3.5" %}</button></form>
+          </span>
+        {% endif %}
+      </div>
     </article>
   {% endfor %}
 </div>
+{% else %}
+  <section class="card">{% include "components/empty_state.html" with icon="hash" title="No VLANs yet" text="Add the VLANs you use (e.g. 10 Management, 20 Servers, 30 CCTV) so ports and connections can reference them." %}</section>
+{% endif %}
 
 {% if can.edit %}
 <div x-data="{ open: false }" @open-vlan.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-  <form data-prototype="VLAN created" @prototype-submitted="open=false" @click.outside="open=false" class="card w-full max-w-md p-0">
+  <form method="post" action="{% url 'dcim:vlan_new' %}" @click.outside="open=false" class="card w-full max-w-md p-0" novalidate>
+    {% csrf_token %}
     <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add VLAN</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
     <div class="grid grid-cols-3 gap-4 p-5">
-      <div><label class="field-label">VLAN ID</label><input type="number" min="1" max="4094" class="input mono" required></div>
-      <div class="col-span-2"><label class="field-label">Name</label><input class="input" required></div>
-      <div class="col-span-3"><label class="field-label">Description</label><input class="input"></div>
+      {% include "components/field.html" with field=form.vid %}
+      {% include "components/field.html" with field=form.name cls="col-span-2" %}
+      {% include "components/field.html" with field=form.location cls="col-span-3" %}
+      {% include "components/field.html" with field=form.description cls="col-span-3" %}
     </div>
     <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save</button></div>
   </form>

@@ -27,9 +27,18 @@ PAGES = [
     ("inventory:rack_check", [], "edit"),
     ("inventory:location_new", [], "edit"),
     ("inventory:location_edit", ["location"], "edit"),
-    ("ui:connections", [], "view"),
-    ("ui:connection_trace", [5], "view"),
-    ("ui:vlans", [], "view"),
+    ("dcim:connections", [], "view"),
+    ("dcim:connection_trace", ["connection"], "view"),
+    ("dcim:connection_new", [], "edit"),
+    ("dcim:connection_edit", ["connection"], "edit"),
+    ("dcim:vlans", [], "view"),
+    ("dcim:vlan_new", [], "edit"),
+    ("dcim:vlan_edit", ["vlan"], "edit"),
+    ("dcim:port_edit", ["port"], "edit"),
+    ("dcim:port_options", [], "view"),
+    ("dcim:pattern_preview", [], "view"),
+    ("inventory:device_models", [], "view"),
+    ("inventory:device_model_edit", ["model"], "edit"),
     ("ui:prefixes", [], "view"),
     ("ui:prefix_detail", [1], "view"),
     ("ui:isps", [], "view"),
@@ -45,7 +54,8 @@ PAGES = [
     ("accounts:profile", [], "view"),
 ]
 
-POST_ONLY = {"inventory:device_retire", "inventory:device_delete", "inventory:rack_delete",
+POST_ONLY = {"dcim:vlan_delete", "dcim:connection_delete", "dcim:port_delete", "dcim:ports_bulk_add",
+             "dcim:ports_apply_template", "inventory:device_retire", "inventory:device_delete", "inventory:rack_delete",
              "inventory:location_delete", "ui:credential_reveal", "ui:import_preview", "accounts:user_create",
              "accounts:user_action",
              "accounts:profile_password", "accounts:profile_reveal_code", "accounts:profile_backup_codes",
@@ -58,7 +68,7 @@ def test_every_url_is_covered():
     from django.urls import get_resolver
 
     names = set()
-    for ns in ("ui", "accounts", "audit", "inventory"):
+    for ns in ("ui", "accounts", "audit", "inventory", "dcim"):
         resolver = get_resolver().namespace_dict[ns][1]
         names |= {f"{ns}:{n}" for n in resolver.reverse_dict if isinstance(n, str)}
     covered = {name for name, _, _ in PAGES} | POST_ONLY | PUBLIC | SPECIAL
@@ -67,10 +77,18 @@ def test_every_url_is_covered():
 
 @pytest.fixture
 def objects(db):
+    from apps.dcim.models import VLAN, Connection
+    from apps.dcim.services import create_ports
     from tests.inventory.helpers import make_device
 
     device = make_device()
-    return {"device": device.pk, "rack": device.rack.pk, "location": device.location.pk}
+    other = make_device(rack=None)
+    (a_port,), _ = create_ports(device, ["port1"])
+    (b_port,), _ = create_ports(other, ["Gi1/0/10"])
+    connection = Connection.objects.create(a_port=a_port, b_port=b_port, function="Uplink")
+    vlan = VLAN.objects.create(vid=10, name="Management")
+    return {"device": device.pk, "rack": device.rack.pk, "location": device.location.pk, "port": a_port.pk,
+            "connection": connection.pk, "vlan": vlan.pk, "model": device.device_model.pk}
 
 
 def resolve(args, objects):
@@ -139,6 +157,8 @@ def test_device_page_hides_edit_for_viewer(as_user, viewer, objects):
 
 
 @pytest.mark.django_db
-def test_connections_page_hides_edit_for_viewer(as_user, viewer):
-    html = as_user(viewer).get(reverse("ui:connections")).content.decode()
-    assert "Add connection" not in html
+def test_connections_page_hides_edit_for_viewer(as_user, viewer, objects):
+    html = as_user(viewer).get(reverse("dcim:connections")).content.decode()
+    assert "Add connection" not in html and reverse("dcim:connection_edit", args=[objects["connection"]]) not in html
+    html = as_user(viewer).get(reverse("inventory:device_detail", args=[objects["device"]])).content.decode()
+    assert "Add ports" not in html and "Trace" in html

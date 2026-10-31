@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{% if connection %}Edit connection{% else %}Add connection{% endif %}{% endblock %}
+{% block crumb %}Infrastructure / Connections{% endblock %}
+{% block heading %}{% if connection %}Edit connection{% else %}Add connection{% endif %}{% endblock %}
+{% block page_title %}{% if connection %}Edit connection{% else %}Add connection{% endif %}{% endblock %}
+{% block page_subtitle %}One cable, entered once — it shows on both devices. A port can only have one cable.{% endblock %}
+
+{% block content %}
+<form method="post" class="grid grid-cols-1 gap-4 lg:grid-cols-12" novalidate
+      x-data="{ kind: '{{ form.b_kind.value|default:'device' }}', mode: '{{ form.apply_mode.value|default:'' }}' }">
+  {% csrf_token %}
+  {% if request.GET.return_device %}<input type="hidden" name="return_device" value="{{ request.GET.return_device }}">{% endif %}
+  <input type="hidden" name="b_kind" :value="kind">
+
+  <div class="space-y-4 lg:col-span-8">
+    {% include "components/form_errors.html" %}
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Cable ends</h2></div>
+      <div class="card-body grid gap-5 md:grid-cols-[1fr_auto_1fr]">
+        <div class="space-y-3">
+          <div class="text-xs font-semibold text-muted uppercase">Side A</div>
+          <div>
+            <label class="field-label" for="id_a_device">Device *</label>
+            <select name="a_device" id="id_a_device" class="input" hx-get="{% url 'dcim:port_options' %}" hx-target="#id_a_port" hx-trigger="change">
+              <option value="">— Choose —</option>
+              {% for d in devices %}<option value="{{ d.pk }}" {% if form.a_device.value|stringformat:'s' == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+            </select>
+            {% for e in form.a_device.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+          </div>
+          <div>
+            <label class="field-label" for="id_a_port">Port *</label>
+            <select name="a_port" id="id_a_port" class="input mono" aria-invalid="{% if form.a_port.errors %}true{% else %}false{% endif %}"
+                    {% if form.a_device.value %}hx-get="{% url 'dcim:port_options' %}?device={{ form.a_device.value }}&keep={{ form.a_port.value|default:'' }}" hx-trigger="load" hx-target="this"{% endif %}>
+              <option value="">— Choose a device first —</option>
+            </select>
+            {% for e in form.a_port.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+        <div class="hidden place-items-center text-faint md:grid">{% icon "arrow-left-right" "size-5" %}</div>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-muted uppercase">Side B</span>
+            <div class="flex gap-1">
+              <button type="button" class="chip h-6 px-2" :class="kind==='device' && 'chip-active'" @click="kind='device'">Device</button>
+              <button type="button" class="chip h-6 px-2" :class="kind==='external' && 'chip-active'" @click="kind='external'">External</button>
+            </div>
+          </div>
+          <div x-show="kind==='device'" class="space-y-3">
+            <div>
+              <label class="field-label" for="id_b_device">Device *</label>
+              <select name="b_device" id="id_b_device" class="input" hx-get="{% url 'dcim:port_options' %}" hx-target="#id_b_port" hx-trigger="change">
+                <option value="">— Choose —</option>
+                {% for d in devices %}<option value="{{ d.pk }}" {% if form.b_device.value|stringformat:'s' == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+              </select>
+              {% for e in form.b_device.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+            </div>
+            <div>
+              <label class="field-label" for="id_b_port">Port *</label>
+              <select name="b_port" id="id_b_port" class="input mono" aria-invalid="{% if form.b_port.errors %}true{% else %}false{% endif %}"
+                      {% if form.b_device.value %}hx-get="{% url 'dcim:port_options' %}?device={{ form.b_device.value }}&keep={{ form.b_port.value|default:'' }}" hx-trigger="load" hx-target="this"{% endif %}>
+                <option value="">— Choose a device first —</option>
+              </select>
+              {% for e in form.b_port.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+            </div>
+          </div>
+          <div x-show="kind==='external'" x-cloak>
+            <label class="field-label" for="id_b_external_name">External endpoint *</label>
+            <input name="b_external_name" id="id_b_external_name" list="externals" value="{{ form.b_external_name.value|default:'' }}" class="input" placeholder="FibreLink ONT — circuit FL-22817">
+            <datalist id="externals">{% for x in externals %}<option value="{{ x }}">{% endfor %}</datalist>
+            <p class="hint">{{ form.b_external_name.help_text }} Existing names are reused.</p>
+            {% for e in form.b_external_name.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">What it's for</h2></div>
+      <div class="card-body grid gap-4 sm:grid-cols-2">
+        {% include "components/field.html" with field=form.function cls="sm:col-span-2" %}
+        {% include "components/field.html" with field=form.remark cls="sm:col-span-2" %}
+      </div>
+    </section>
+  </div>
+
+  <div class="space-y-4 lg:col-span-4">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Cable</h2></div>
+      <div class="card-body grid grid-cols-2 gap-3">
+        {% include "components/field.html" with field=form.cable_label %}
+        {% include "components/field.html" with field=form.cable_type %}
+        {% include "components/field.html" with field=form.colour %}
+        {% include "components/field.html" with field=form.length_m %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">Port mode & VLANs</h2></div>
+      <div class="card-body space-y-3">
+        <div>
+          <label class="field-label" for="id_apply_mode">{{ form.apply_mode.label }}</label>
+          <select name="apply_mode" id="id_apply_mode" class="input" x-model="mode">
+            {% for value, label in form.apply_mode.field.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+          <p class="hint">Applied to both ports (only side A for external links).</p>
+        </div>
+        <div x-show="mode && mode !== 'routed'" x-cloak class="space-y-3">
+          {% include "components/field.html" with field=form.untagged_vlan %}
+          <div x-show="mode === 'trunk'">
+            <span class="field-label">Tagged VLANs</span>
+            <div class="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-line bg-surface-2 p-2 text-[13px]">
+              {% for choice in form.tagged_vlans %}<label class="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-surface-3">{{ choice.tag }} <span class="mono">{{ choice.choice_label }}</span></label>
+              {% empty %}<p class="px-1 text-xs text-muted">No VLANs yet. <a class="text-up hover:underline" href="{% url 'dcim:vlans' %}">Add some</a>.</p>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="flex gap-2">
+      <a href="{% if request.GET.return_device %}{% url 'inventory:device_detail' request.GET.return_device %}?tab=ports{% else %}{% url 'dcim:connections' %}{% endif %}" class="btn flex-1">Cancel</a>
+      <button class="btn btn-primary flex-1">{% icon "cable" %} Save connection</button>
+    </div>
+    {% if connection %}
+      <button type="submit" form="delete-connection" class="btn btn-ghost w-full text-down">{% icon "trash-2" %} Disconnect (delete this connection)</button>
+    {% endif %}
+  </div>
+</form>
+{% if connection %}
+  <form id="delete-connection" method="post" action="{% url 'dcim:connection_delete' connection.pk %}" onsubmit="return confirm('Delete this connection? Both ports become free.')">{% csrf_token %}
+    {% if request.GET.return_device %}<input type="hidden" name="return_device" value="{{ request.GET.return_device }}">{% endif %}</form>
+{% endif %}
+{% endblock %}

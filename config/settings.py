@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.audit",
     "apps.inventory",
+    "apps.dcim",
     "apps.ui",
 ]
 

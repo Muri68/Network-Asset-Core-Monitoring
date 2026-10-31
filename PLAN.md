@@ -316,7 +316,15 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - Rack elevation view, device detail page (tabs scaffolded)
 - **Done when:** you can model Rack 1 with a firewall and Cisco switch placed in the correct U positions.
 
-### Phase 3 — Ports, VLANs & connections
+### Phase 3 — Ports, VLANs & connections ✅ (approved by owner 2026-11-01)
+- Done: `apps/dcim` with VLAN (global or per location), Port (type, speed, access/trunk/routed, untagged + tagged VLANs, label, remark, enabled, patch-panel `paired_port`, natural sort), ExternalEndpoint, Connection (side A port ↔ side B port or external endpoint, function, cable label/type/colour/length, remark).
+- **Change from §6.3:** the *function* lives on the **connection** (typed once, shown on both devices), not on each port; ports keep a remark.
+- One cable per port enforced in the form, by unique columns, and by a **database trigger** (SQLite now, PostgreSQL version in the same migration). Exactly one side B and no self-connection enforced by check constraints.
+- Port patterns (`Gi1/0/[1-48]`, `Gi[1-2]/0/[1-24]`, `port[1,3,5-8]`) for bulk add with live preview; device-model port templates (new Device models page) applied automatically to new devices; patch panels get paired rear ports.
+- Pages: device Ports & connections tab (front panel, table, connect/trace/edit), connection form (live port pickers that grey out cabled ports, external endpoints reused by name, optional mode + VLANs applied to both ends), global connections list (search incl. VLAN ID, device and rack filters), cable trace through patch panels (from either cable of a run), VLANs page, port edit page.
+- Audit: VLANs, ports, endpoints and connections tracked with readable values; tagged-VLAN changes logged explicitly.
+- `load_demo_inventory` now also loads 7 VLANs, port templates, 414 ports and the 28 sample cables.
+- Checks: 357 pytest tests, ruff clean, browser walk-through.
 - VLAN CRUD; Port CRUD + bulk create from pattern (`Gi1/0/[1-48]`) and auto-create from model template
 - Connection create/edit from either side, external endpoints, patch-panel pass-through, one-port-one-connection constraint
 - Device "Ports & Connections" tab; global connections table (filter by rack, device, VLAN, function); path trace view

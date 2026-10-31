@@ -47,7 +47,7 @@
 <div x-data="{ tab: '{{ tab }}' }">
   <div class="tabs mb-4">
     <button class="tab" :class="tab==='overview' && 'tab-active'" @click="tab='overview'">{% icon "info" "size-4" %} Overview</button>
-    <button class="tab" :class="tab==='ports' && 'tab-active'" @click="tab='ports'">{% icon "ethernet-port" "size-4" %} Ports & connections</button>
+    <button class="tab" :class="tab==='ports' && 'tab-active'" @click="tab='ports'">{% icon "ethernet-port" "size-4" %} Ports & connections <span class="pill pill-muted">{{ connected }}/{{ ports|length }}</span></button>
     <button class="tab" :class="tab==='ips' && 'tab-active'" @click="tab='ips'">{% icon "globe" "size-4" %} IP addresses</button>
     <button class="tab" :class="tab==='monitors' && 'tab-active'" @click="tab='monitors'">{% icon "activity" "size-4" %} Monitors</button>
     {% if can.vault %}<button class="tab" :class="tab==='creds' && 'tab-active'" @click="tab='creds'">{% icon "key-round" "size-4" %} Credentials</button>{% endif %}
@@ -113,9 +113,7 @@
   </div>
 
   {# ---------------- Coming in later phases ---------------- #}
-  <section x-show="tab==='ports'" x-cloak class="card">
-    {% include "components/empty_state.html" with icon="ethernet-port" title="Ports & connections come next" text="The next step adds this device's ports, what each one connects to, its function and VLANs, and cable tracing." %}
-  </section>
+  <div x-show="tab==='ports'" x-cloak>{% include "inventory/partials/ports_tab.html" %}</div>
   <section x-show="tab==='ips'" x-cloak class="card">
     {% if d.mgmt_ip %}
       <div class="table-wrap"><table class="table"><thead><tr><th>IP address</th><th>Use</th></tr></thead>
@@ -143,6 +141,8 @@
     {% endif %}
   </section>
 </div>
+
+{% include "dcim/partials/trace_modal.html" %}
 
 {% if can.delete_hard %}
 <div x-data="{ open: false, typed: '' }" @open-delete.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">

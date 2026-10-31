@@ -14,9 +14,6 @@ urlpatterns = [
     path("incidents/", views.incidents, name="incidents"),
     path("maintenance/", views.maintenance, name="maintenance"),
     # Infrastructure
-    path("connections/", views.connections, name="connections"),
-    path("connections/<int:pk>/trace/", views.connection_trace, name="connection_trace"),
-    path("vlans/", views.vlans, name="vlans"),
     # IPAM
     path("ipam/prefixes/", views.prefixes, name="prefixes"),
     path("ipam/prefixes/<int:pk>/", views.prefix_detail, name="prefix_detail"),

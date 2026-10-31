@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Device models{% endblock %}
+{% block crumb %}Infrastructure{% endblock %}
+{% block heading %}Device models{% endblock %}
+{% block page_title %}Device models{% endblock %}
+{% block page_subtitle %}Models are created when you add a device. Give a model a port template and every new device of that model gets its ports automatically.{% endblock %}
+
+{% block content %}
+<section class="card overflow-hidden">
+  {% if models %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Model</th><th>Type</th><th class="hidden sm:table-cell">Height</th><th>Port template</th><th>Devices</th><th></th></tr></thead>
+      <tbody>
+        {% for m in models %}
+          <tr>
+            <td><div class="font-medium">{{ m.name }}</div><div class="text-xs text-muted">{{ m.manufacturer }}</div></td>
+            <td class="text-ink-2">{{ m.get_device_type_display }}</td>
+            <td class="hidden text-muted sm:table-cell">{{ m.height_u }}U</td>
+            <td>{% if m.port_count %}<span class="pill pill-up">{{ m.port_count }} ports</span>{% elif m.port_count is None %}<span class="pill pill-down">Invalid</span>{% else %}<span class="text-xs text-faint">None</span>{% endif %}</td>
+            <td><a class="hover:underline" href="{% url 'inventory:devices' %}?status=all&q={{ m.name|urlencode }}">{{ m.device_count }}</a></td>
+            <td class="text-right">{% if can.edit %}<a href="{% url 'inventory:device_model_edit' m.pk %}" class="btn btn-ghost btn-sm">{% icon "pencil" "size-3.5" %} Edit</a>{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon="box" title="No models yet" text="A model is created automatically the first time you add a device of that make and model." %}
+  {% endif %}
+</section>
+{% endblock %}

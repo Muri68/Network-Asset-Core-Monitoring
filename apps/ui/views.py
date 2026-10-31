@@ -167,30 +167,6 @@ def maintenance(request):
 # --------------------------------------------------------------------------
 
 
-def connections(request):
-    q = _q(request)
-    mode = request.GET.get("mode", "")
-    rows = [
-        c for c in fd.CONNECTIONS
-        if (not mode or c["mode"] == mode)
-        and (not q or q in c["a_device"]["name"].lower() or q in (c["b_device"] or {}).get("name", "").lower()
-             or q in c["function"].lower() or q in (c["b_external"] or "").lower() or q in c["vlans"])
-    ]
-    return _page(request, "dcim/connections.html", "connections", connections=rows, q=q, mode=mode,
-                 devices=fd.DEVICES, total=len(fd.CONNECTIONS))
-
-
-def connection_trace(request, pk):
-    if pk not in {c["id"] for c in fd.CONNECTIONS}:
-        raise Http404
-    hops, cables = fd.trace(pk)
-    return render(request, "dcim/partials/trace.html", {"hops": hops, "cables": cables})
-
-
-def vlans(request):
-    return _page(request, "dcim/vlans.html", "vlans", vlans=fd.VLANS)
-
-
 # --------------------------------------------------------------------------
 # IPAM
 # --------------------------------------------------------------------------
