@@ -32,7 +32,6 @@ urlpatterns = [
     path("vault/<int:pk>/", views.credential_detail, name="credential_detail"),
     path("vault/<int:pk>/reveal/", views.credential_reveal, name="credential_reveal"),
     path("vault/log/", views.reveal_log, name="reveal_log"),
-    path("audit/", views.audit, name="audit"),
     # Administration
     path("data/", views.data, name="data"),
     path("data/import/preview/", views.import_preview, name="import_preview"),

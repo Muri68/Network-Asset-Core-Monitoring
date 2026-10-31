@@ -25,7 +25,7 @@ NAV = [
     ]),
     ("Security", [
         ("vault", "Password vault", "folder-lock", "ui:vault", "vault"),
-        ("audit", "Audit log", "scroll-text", "ui:audit", "audit"),
+        ("audit", "Audit log", "scroll-text", "audit:log", "audit"),
     ]),
     ("Administration", [
         ("users", "Users & roles", "users", "accounts:users", "manage_users"),

@@ -1,0 +1,34 @@
+{% load humanize %}
+{# Audit entries as a table. `expandable` adds a click-to-open row with the change details. #}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>When</th><th>User</th><th>Action</th><th>Object</th><th class="hidden md:table-cell">IP address</th>{% if expandable %}<th></th>{% endif %}</tr></thead>
+    {% for e in entries %}
+      <tbody {% if expandable %}x-data="{ open: false }"{% endif %} class="border-b border-line last:border-0 [&>tr>td]:border-0">
+        <tr {% if expandable and e.changes or expandable and e.user_agent %}class="cursor-pointer" @click="open = !open"{% endif %}>
+          <td class="text-xs whitespace-nowrap">{{ e.timestamp|date:"d M, H:i:s" }}<div class="text-muted">{{ e.timestamp|naturaltime }}</div></td>
+          <td class="whitespace-nowrap"><span class="flex items-center gap-2">{% include "components/avatar.html" with name=e.actor_repr size="size-6" %}<span class="text-[13px]">{{ e.actor_repr }}</span></span></td>
+          <td><span class="pill pill-{{ e.tone }}">{{ e.label }}</span></td>
+          <td class="text-ink-2">{{ e.object_label|default:"—" }}{% if e.message %}<div class="text-xs text-muted">{{ e.message }}</div>{% endif %}</td>
+          <td class="mono hidden text-muted md:table-cell">{{ e.ip|default:"—" }}</td>
+          {% if expandable %}<td class="w-10 text-right text-muted">{% if e.changes or e.user_agent %}<span class="inline-block transition" :class="open && 'rotate-180'">{% icon "chevron-down" %}</span>{% endif %}</td>{% endif %}
+        </tr>
+        {% if expandable %}
+          <tr x-show="open" x-cloak class="hover:bg-transparent">
+            <td colspan="6" class="pt-0">
+              <div class="inset space-y-3 overflow-x-auto p-3 text-xs">
+                {% if e.changes %}
+                  <table class="w-full">
+                    <thead><tr class="text-left text-muted"><th class="pb-2 font-medium">Field</th><th class="pb-2 font-medium">Before</th><th class="pb-2 font-medium">After</th></tr></thead>
+                    <tbody>{% for f, ch in e.changes.items %}<tr><td class="mono py-1 pr-6 text-ink-2">{{ f }}</td><td class="mono py-1 pr-6 text-down">{% if ch.0 is None %}∅{% else %}{{ ch.0 }}{% endif %}</td><td class="mono py-1 text-up">{% if ch.1 is None %}∅{% else %}{{ ch.1 }}{% endif %}</td></tr>{% endfor %}</tbody>
+                  </table>
+                {% endif %}
+                {% if e.user_agent %}<div class="text-muted">Browser: <span class="text-ink-2">{{ e.user_agent }}</span></div>{% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    {% endfor %}
+  </table>
+</div>

@@ -14,6 +14,8 @@ from django.utils import timezone
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
+from apps.audit.log import log_event
+
 from . import roles
 from .models import User
 
@@ -71,16 +73,20 @@ def reset_password(user):
     user.set_password(password)
     user.must_change_password = True
     user.save(update_fields=["password", "must_change_password"])
+    log_event("password_reset", user, message="Temporary password issued; must be changed at next sign-in")
     return password
 
 
 def reset_two_factor(user):
     TOTPDevice.objects.filter(user=user).delete()
     StaticDevice.objects.filter(user=user).delete()
+    log_event("2fa_reset", user, message="Authenticator and backup codes removed; set up again at next sign-in")
 
 
 def unlock_login(user):
-    return axes_reset(username=user.username)
+    cleared = axes_reset(username=user.username)
+    log_event("login_unlock", user)
+    return cleared
 
 
 def login_locked_usernames():
@@ -98,6 +104,7 @@ def unlock_vault(user):
     profile.reveal_failed_attempts = 0
     profile.vault_locked_at = None
     profile.save(update_fields=["reveal_failed_attempts", "vault_locked_at"])
+    log_event("vault_unlock", user)
 
 
 # --------------------------------------------------------------------------
@@ -107,9 +114,11 @@ def unlock_vault(user):
 
 def set_reveal_code(user, code):
     profile = user.profile
+    first_time = not profile.reveal_code_hash
     profile.reveal_code_hash = make_password(code)
     profile.reveal_code_set_at = timezone.now()
     profile.save(update_fields=["reveal_code_hash", "reveal_code_set_at"])
+    log_event("reveal_code_change", user, message="Reveal code created" if first_time else "Reveal code changed")
 
 
 def check_reveal_code(user, code):

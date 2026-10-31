@@ -281,11 +281,19 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - pytest + factory_boy setup, CI workflow file (GitHub Actions, if you use GitHub)
 - **Done when:** `docker compose up` shows a styled login page; tests run green.
 
-### Phase 1a — Authentication & authorization 🔍 (built 2026-10-31, awaiting owner's manual check)
+### Phase 1a — Authentication & authorization ✅ (approved by owner 2026-10-31)
 - Done: custom `User` + `Profile`, roles as Groups (migration), capability map in `apps/accounts/roles.py`, `capability_required` on every restricted view, buttons/nav/search hidden by role, multi-step sign-in (password → forced new password → TOTP setup with QR + 10 backup codes / TOTP or backup code → reveal-code setup for vault roles), axes lockout, 30-min idle timeout (dashboard polling doesn't count), user management (create with one-time temp password, edit role, deactivate, reset password, reset 2FA, unlock sign-in, unlock vault, last-Admin guard), profile (password, reveal code, backup codes), `bootstrap_admin`.
 - Checks: 176 pytest tests (every page × every role, full sign-in journeys, lockout, idle timeout, last-Admin rules), ruff clean, scripted browser walk-through.
 - Decisions taken: **SQLite for now** (owner, 2026-10-31; PostgreSQL before the audit trigger/IPAM work). Axes lockout **expires after 30 min** in addition to Admin unlock, so a single Admin can't be permanently locked out. `django-axes` pinned to 8.3.1 (9.0.0 was one day old).
-- Deferred to Phase 1b: audit framework (the next step).
+- Deferred to Phase 1b: audit framework.
+
+### Phase 1b — Audit trail ✅ (approved by owner 2026-10-31)
+- `apps/audit`: `AuditLog` (actor, IP, browser, action, object, before→after `changes`, message). Append-only three ways: model guards, queryset guards, and **database triggers** (SQLite now; the PostgreSQL trigger is in the same migration). Deleting a user never touches audit rows.
+- `log_event()` for explicit events; `track(Model, exclude=…, mask=…)` for automatic create/update/delete diffs — later phases register their models with it. Secrets are masked ("••• changed"); passwords, temporary passwords, backup codes and reveal codes never reach the log.
+- Recorded now: sign-in, sign-out (incl. idle timeout), failed sign-in (with attempted username), lockouts, 2FA setup / wrong codes / backup-code use / new backup codes, password and reveal-code changes, user create/edit (field diffs), role changes, deactivate/activate, password reset, 2FA reset, sign-in and vault unlocks, audit CSV exports; `bootstrap_admin` is attributed to "Command line".
+- UI: Audit log page (search, user, action, date range, pagination, expandable before/after, CSV export), dashboard "Recent activity" (Admins), per-user activity on the user page.
+- Checks: 210 pytest tests, ruff clean, browser walk-through.
+- Note: IP is taken from the direct connection; when Nginx is added (Phase 9) the trusted proxy header must be read instead (`apps/audit/context.py: client_ip`).
 
 ### Phase 1 — Accounts, roles, security & audit
 - Roles (Groups via data migration), `RoleRequiredMixin`, URL-access test harness

@@ -32,8 +32,13 @@ class User(AbstractUser):
     def set_role(self, role):
         if role not in roles.ROLES:
             raise ValueError(f"Unknown role: {role}")
+        old = self.role
         self.groups.set([Group.objects.get(name=role)])
         self.__dict__.pop("role", None)
+        if old != role:
+            from apps.audit.log import log_event
+
+            log_event("user_role_change", self, changes={"role": [old, role]})
 
     def save(self, *args, **kwargs):
         # Store blank email as NULL so several users may leave it empty.

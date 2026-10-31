@@ -40,14 +40,16 @@ class SessionSecurityMiddleware:
         user = request.user
         if user.is_authenticated:
             if not user.is_verified():
+                request.logout_reason = "Session without a verified second factor"
                 logout(request)
                 return _to_login(request)
 
             now = time.time()
             last = request.session.get("last_activity", now)
             if now - last > settings.NETCORE_IDLE_TIMEOUT.total_seconds():
-                logout(request)
                 minutes = int(settings.NETCORE_IDLE_TIMEOUT.total_seconds() // 60)
+                request.logout_reason = f"Signed out after {minutes} minutes of inactivity"
+                logout(request)
                 return _to_login(request, f"You were signed out after {minutes} minutes of inactivity.")
             if not request.META.get(BACKGROUND_HEADER):
                 request.session["last_activity"] = now

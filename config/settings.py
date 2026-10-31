@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "axes",
     "django_tailwind_cli",
     "apps.accounts",
+    "apps.audit",
     "apps.ui",
 ]
 
@@ -46,6 +47,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.audit.context.AuditContextMiddleware",
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.auth.middleware.LoginRequiredMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

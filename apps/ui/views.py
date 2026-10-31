@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import capability_required
 from apps.accounts.roles import can
+from apps.audit.models import AuditLog
 
 from . import fake_data as fd
 
@@ -82,8 +83,7 @@ def dashboard(request):
         "alerts": fd.ALERTS[:5],
         "ssl": sorted((m for m in fd.MONITORS if m["cert_days"] is not None), key=lambda m: m["cert_days"]),
         "warranty": warranty[:5],
-        "audit": fd.AUDIT[:6],
-        "action_meta": fd.AUDIT_ACTION_META,
+        "recent_audit": AuditLog.objects.select_related("object_type")[:6] if can(request.user, "audit") else [],
         "prefixes": fd.PREFIXES,
         "maintenance_active": [m for m in fd.MAINTENANCE if m["state"] == "active"],
         "chart_uptime": {
@@ -359,20 +359,6 @@ def reveal_log(request):
     if not can(request.user, "vault_logs_all"):
         log = [r for r in log if r["user"] == request.user.name]
     return _page(request, "vault/reveal_log.html", "vault", log=log, all_users=can(request.user, "vault_logs_all"))
-
-
-@capability_required("audit")
-def audit(request):
-    action = request.GET.get("action", "")
-    actor = request.GET.get("actor", "")
-    q = _q(request)
-    rows = [
-        a for a in fd.AUDIT
-        if (not action or a["action"] == action) and (not actor or a["actor"] == actor)
-        and (not q or q in a["object"].lower() or q in a["actor"].lower())
-    ]
-    return _page(request, "system/audit.html", "audit", entries=rows, meta=fd.AUDIT_ACTION_META, action=action,
-                 actor=actor, q=q, actors=sorted({a["actor"] for a in fd.AUDIT}))
 
 
 # --------------------------------------------------------------------------

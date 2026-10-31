@@ -46,5 +46,12 @@
       {% include "accounts/partials/user_actions.html" with target=target %}
     </div>
   </section>
+
+  <section class="card lg:col-span-12">
+    <div class="card-head"><h2 class="card-title">Activity by and about {{ target.name }}</h2>
+      {% if can.audit %}<a href="{% url 'audit:log' %}?q={{ target.name|urlencode }}" class="link-more">Full audit log {% icon "arrow-up-right" "size-3" %}</a>{% endif %}</div>
+    {% if activity %}{% include "audit/partials/entries_table.html" with entries=activity expandable=True %}
+    {% else %}<p class="px-5 pb-5 text-xs text-muted">No activity recorded yet.</p>{% endif %}
+  </section>
 </div>
 {% endblock %}

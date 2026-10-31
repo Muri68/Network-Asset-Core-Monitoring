@@ -2,7 +2,8 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_not_required
 from django.contrib.auth.models import Group
-from django.db.models import Prefetch
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -10,6 +11,9 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django_otp import match_token
 from django_otp.plugins.otp_totp.models import TOTPDevice
+
+from apps.audit.log import log_event
+from apps.audit.models import AuditLog
 
 from . import flow, roles, services
 from .decorators import capability_required
@@ -69,6 +73,7 @@ def login_password(request):
     form = NewPasswordForm(user, request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
+        log_event("password_change", user, actor=user, message="Temporary password replaced at sign-in")
         return redirect(flow.next_step_url(user))
     return render(request, "auth/new_password.html", {"form": form, "pending": user})
 
@@ -87,11 +92,12 @@ def login_2fa_setup(request):
         if device.verify_token(form.cleaned_data["token"]):
             device.confirmed = True
             device.save(update_fields=["confirmed"])
+            log_event("2fa_setup", user, actor=user, message="Authenticator app set up; 10 backup codes issued")
             request.session[SHOW_ONCE] = {"backup_codes": services.new_backup_codes(user)}
             next_url = flow.complete(request, user, device)
             request.session["after_backup_codes"] = next_url
             return redirect("accounts:backup_codes")
-        if flow.record_2fa_failure(request):
+        if _two_factor_failed(request, user, "during setup"):
             messages.error(request, "Too many wrong codes. Please sign in again.")
             return redirect("accounts:login")
         form.add_error("token", "That code didn't match. Check the time on your phone and try the newest code.")
@@ -112,14 +118,25 @@ def login_2fa(request):
     if request.method == "POST" and form.is_valid():
         device = match_token(user, form.cleaned_data["token"])
         if device is not None:
+            next_url = flow.complete(request, user, device)
             if device.persistent_id.startswith("otp_static"):
-                messages.warning(request, f"Backup code used. {services.backup_codes_left(user)} left.")
-            return redirect(flow.complete(request, user, device))
-        if flow.record_2fa_failure(request):
+                left = services.backup_codes_left(user)
+                log_event("backup_code_used", user, message=f"{left} backup codes left")
+                messages.warning(request, f"Backup code used. {left} left.")
+            return redirect(next_url)
+        if _two_factor_failed(request, user, "at sign-in"):
             messages.error(request, "Too many wrong codes. Please sign in again.")
             return redirect("accounts:login")
         form.add_error("token", "That code isn't valid. Try the newest code from your app, or a backup code.")
     return render(request, "auth/login_2fa.html", {"form": form, "pending": user})
+
+
+def _two_factor_failed(request, user, where):
+    """Log a wrong 2FA code; True when the limit is reached and sign-in was cancelled."""
+    cancelled = flow.record_2fa_failure(request)
+    message = f"Wrong code {where}" + (" — sign-in cancelled after too many attempts" if cancelled else "")
+    log_event("2fa_failed", user, actor=user, message=message)
+    return cancelled
 
 
 @never_cache
@@ -185,6 +202,7 @@ def profile_password(request):
     if form.is_valid():
         form.save()
         update_session_auth_hash(request, request.user)
+        log_event("password_change", request.user, message="Changed on profile page")
         messages.success(request, "Password changed.")
         return redirect("accounts:profile")
     return render(request, "accounts/profile.html", _profile_context(request, password_form=form), status=400)
@@ -206,6 +224,7 @@ def profile_backup_codes(request):
     if form.is_valid():
         request.session[SHOW_ONCE] = {"backup_codes": services.new_backup_codes(request.user)}
         request.session["after_backup_codes"] = reverse("accounts:profile")
+        log_event("backup_codes_new", request.user, message="All previous backup codes replaced")
         return redirect("accounts:backup_codes")
     return render(request, "accounts/profile.html", _profile_context(request, backup_form=form), status=400)
 
@@ -272,9 +291,13 @@ def user_edit(request, pk):
         messages.success(request, f"{target.name} updated.")
         return redirect("accounts:users")
     target.login_locked = target.username in services.login_locked_usernames()
+    user_type = ContentType.objects.get_for_model(User)
+    activity = AuditLog.objects.filter(
+        Q(actor=target) | Q(object_type=user_type, object_id=str(target.pk))
+    ).select_related("object_type")[:15]
     return render(request, "accounts/user_edit.html", {
         "form": form, "target": target, "has_2fa": services.confirmed_totp(target) is not None,
-        "login_locked": target.login_locked, "active": "users",
+        "login_locked": target.login_locked, "activity": activity, "active": "users",
     })
 
 

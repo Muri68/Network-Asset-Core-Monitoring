@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from apps.accounts import roles, services
 from apps.accounts.models import User
+from apps.audit.context import acting_as
 
 
 class Command(BaseCommand):
@@ -37,9 +38,11 @@ class Command(BaseCommand):
         except ValidationError as e:
             raise CommandError(" ".join(e.messages)) from e
 
-        user, _ = services.create_user(
-            username=username, full_name=opts["full_name"], email=opts["email"], role=roles.ADMIN, password=password
-        )
+        with acting_as("Command line (bootstrap_admin)"):
+            user, _ = services.create_user(
+                username=username, full_name=opts["full_name"], email=opts["email"], role=roles.ADMIN,
+                password=password,
+            )
         self.stdout.write(self.style.SUCCESS(
             f"Admin '{user.username}' created. Sign in to set up two-factor authentication and your reveal code."
         ))

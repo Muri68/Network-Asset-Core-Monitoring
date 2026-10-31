@@ -89,3 +89,10 @@ def gauge(percent, caption=""):
         "percent": percent, "caption": caption, "arc": round(arc_len, 2),
         "dash": round(arc_len * percent / 100, 2), "angle": round(-90 + 180 * percent / 100, 2),
     }
+
+
+@register.filter
+def initials(name):
+    """'Grace Adeyemi' → 'GA', 'Unknown (grace)' → 'UG', 'System' → 'S'."""
+    words = re.findall(r"[^\W_]+", str(name or ""))
+    return "".join(w[0] for w in words[:2]).upper() or "?"

@@ -7,8 +7,9 @@ rack/port documentation and an audited password vault. See [PLAN.md](PLAN.md) fo
 ## Current stage
 
 **Live:** sign-in with mandatory two-factor (authenticator app + backup codes), roles
-(Admin / Engineer / Viewer), user management, profile, vault reveal-code setup.
-**Still sample data:** monitoring, inventory, racks, IPAM, vault contents, audit log, settings.
+(Admin / Engineer / Viewer), user management, profile, vault reveal-code setup, and an
+append-only **audit log** of every sign-in, security event and change.
+**Still sample data:** monitoring, inventory, racks, IPAM, vault contents, settings.
 
 ## Run it locally
 
@@ -43,6 +44,7 @@ In the sample-data vault, the demo reveal code is still `123456`.
 ```
 config/            Django settings & URLs
 apps/accounts/     Users, roles, sign-in flow, 2FA, profile, user management
+apps/audit/        Append-only audit log: log_event(), track(Model), viewer and CSV export
 apps/ui/           Sample-data views (replaced area by area), template tags
 templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
 tests/             pytest suite

@@ -31,7 +31,8 @@ PAGES = [
     ("ui:vault", [], "vault"),
     ("ui:credential_detail", [1], "vault"),
     ("ui:reveal_log", [], "vault"),
-    ("ui:audit", [], "audit"),
+    ("audit:log", [], "audit"),
+    ("audit:export", [], "audit"),
     ("ui:data", [], "export"),
     ("ui:settings", [], "settings"),
     ("accounts:users", [], "manage_users"),
@@ -49,7 +50,7 @@ def test_every_url_is_covered():
     from django.urls import get_resolver
 
     names = set()
-    for ns in ("ui", "accounts"):
+    for ns in ("ui", "accounts", "audit"):
         resolver = get_resolver().namespace_dict[ns][1]
         names |= {f"{ns}:{n}" for n in resolver.reverse_dict if isinstance(n, str)}
     covered = {name for name, _, _ in PAGES} | POST_ONLY | PUBLIC | SPECIAL
@@ -95,7 +96,7 @@ def test_import_is_admin_only(as_user, role, allowed):
 @pytest.mark.django_db
 def test_viewer_sees_no_admin_or_vault_links(as_user, viewer):
     html = as_user(viewer).get(reverse("ui:dashboard")).content.decode()
-    for name in ("ui:vault", "ui:audit", "ui:settings", "accounts:users", "ui:data", "ui:monitor_new"):
+    for name in ("ui:vault", "audit:log", "ui:settings", "accounts:users", "ui:data", "ui:monitor_new"):
         assert f'href="{reverse(name)}"' not in html, name
     assert '"kind": "Credential"' not in html  # search palette doesn't list credentials
 
@@ -105,7 +106,7 @@ def test_engineer_nav(as_user, engineer):
     html = as_user(engineer).get(reverse("ui:dashboard")).content.decode()
     assert f'href="{reverse("ui:vault")}"' in html
     assert f'href="{reverse("ui:monitor_new")}"' in html
-    for name in ("ui:audit", "ui:settings", "accounts:users"):
+    for name in ("audit:log", "ui:settings", "accounts:users"):
         assert f'href="{reverse(name)}"' not in html, name
 
 
