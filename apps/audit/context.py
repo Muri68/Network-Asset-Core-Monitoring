@@ -36,8 +36,7 @@ def acting_as(label):
 
 
 def client_ip(request):
-    # LAN-only for now: the app is reached directly. When Nginx is added in Phase 9,
-    # read the forwarded address from a trusted proxy header here.
+    # Behind Nginx, apps.core.middleware.ProxyClientIPMiddleware has already put the real address here.
     return request.META.get("REMOTE_ADDR") or None
 
 

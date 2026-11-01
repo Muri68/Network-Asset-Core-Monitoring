@@ -1,0 +1,25 @@
+[Unit]
+Description=NetCore web (Gunicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=netcore
+Group=netcore
+WorkingDirectory=/opt/netcore/app
+ExecStart=/opt/netcore/venv/bin/gunicorn config.wsgi:application \
+    --bind unix:/run/netcore/web.sock --umask 007 --workers 3 --timeout 60 \
+    --access-logfile - --error-logfile -
+RuntimeDirectory=netcore
+RuntimeDirectoryMode=0750
+Restart=always
+RestartSec=3
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/netcore
+
+[Install]
+WantedBy=multi-user.target

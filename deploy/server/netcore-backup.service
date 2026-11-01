@@ -1,0 +1,6 @@
+[Unit]
+Description=NetCore database backup
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/netcore-backup nightly

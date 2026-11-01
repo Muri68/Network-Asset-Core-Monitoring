@@ -81,6 +81,33 @@ create your vault reveal code. Add other users from **Users & roles**.
 Locked out after 5 wrong passwords? Wait 30 minutes, ask another Admin, or run
 `python manage.py axes_reset_username <username>`.
 
+## Install on the server
+
+The server is an Ubuntu VM on the LAN (Python 3.12+). Nginx serves HTTPS with a self-signed certificate,
+Gunicorn runs the web pages (`netcore-web`) and `run_monitor` runs as `netcore-monitor`, both systemd
+services under the `netcore` user. Once your SSH key is on the server (`ssh-copy-id supportadmin@10.255.15.66`),
+deploy the committed code from this folder:
+
+```bash
+deploy/deploy.sh                    # first install and every update; deploys HEAD to supportadmin@10.255.15.66
+ssh -t supportadmin@10.255.15.66 sudo netcore-manage bootstrap_admin --username yourname --full-name "Your Name"
+```
+
+| What | Where on the server |
+|---|---|
+| Settings and **encryption key** (copy the key offline!) | `/etc/netcore/netcore.env` |
+| Database | `/var/lib/netcore/db.sqlite3` |
+| Backups (nightly 02:30, kept 30 days, and before every deploy) | `/var/backups/netcore/` |
+| Code (one folder per deploy, last five kept) | `/opt/netcore/app` → `/opt/netcore/releases/<commit>` |
+| Certificate | `/etc/netcore/tls/` |
+
+- Logs: `journalctl -u netcore-web -u netcore-monitor -f`. Restart: `systemctl restart netcore-web netcore-monitor`.
+- Health: `https://<server>/health/` answers 200 when the database works and the checker is running, 503 if not.
+- Management commands: `sudo netcore-manage <command>` (e.g. `vault_rotate_key --check`, `axes_reset_username`).
+- Roll back: `bash /opt/netcore/releases/<older>/deploy/server/activate.sh /opt/netcore/releases/<older>`.
+- Restore a backup: steps at the top of `deploy/server/netcore-backup`.
+- Firewall: if ufw is on, ports 80 and 443 are opened to private (LAN) addresses; it is never switched on by the deploy (the server also runs LibreNMS, Uptime Kuma and PegaProx).
+
 ## Tests
 
 ```bash

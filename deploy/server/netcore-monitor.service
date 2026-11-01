@@ -1,0 +1,23 @@
+[Unit]
+Description=NetCore checker and Telegram alerts (run_monitor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=netcore
+Group=netcore
+WorkingDirectory=/opt/netcore/app
+ExecStart=/opt/netcore/venv/bin/python manage.py run_monitor
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/netcore
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run a NetCore management command on the server as the app user, e.g.
+#   netcore-manage bootstrap_admin --username isyaku --full-name "Isyaku Muri"
+#   netcore-manage vault_rotate_key --check
+cd /opt/netcore/app && exec runuser -u netcore -- /opt/netcore/venv/bin/python manage.py "$@"

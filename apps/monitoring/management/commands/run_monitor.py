@@ -12,7 +12,8 @@ class Command(BaseCommand):
     help = "Run the monitoring checks and Telegram alerts continuously (keep this running alongside the web server)."
 
     def handle(self, *args, **opts):
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+        # force: replace Django's WARNING-level LOGGING so the checker's progress lines show up.
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", force=True)
         logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per check would flood the log
         self.stdout.write(self.style.SUCCESS("NetCore monitor running — press Ctrl+C to stop."))
 

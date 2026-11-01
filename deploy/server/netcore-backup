@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Consistent copy of the NetCore database (safe while the app runs), gzipped, into /var/backups/netcore.
+# Nightly via netcore-backup.timer; keeps 30 days. The encryption key is NOT in the backup:
+# keep the offline copy of NETCORE_ENCRYPTION_KEYS (from /etc/netcore/netcore.env) separately.
+# Restore: systemctl stop netcore-web netcore-monitor
+#          gunzip -c <file> > /var/lib/netcore/db.sqlite3 && chown netcore: /var/lib/netcore/db.sqlite3
+#          rm -f /var/lib/netcore/db.sqlite3-wal /var/lib/netcore/db.sqlite3-shm
+#          systemctl start netcore-web netcore-monitor
+set -euo pipefail
+
+DB=/var/lib/netcore/db.sqlite3
+DEST=/var/backups/netcore
+LABEL="${1:-nightly}"
+FILE="$DEST/netcore-$(date +%Y%m%d-%H%M%S)-$LABEL.sqlite3"
+
+sqlite3 "$DB" ".backup '$FILE'"
+[[ "$(sqlite3 "$FILE" 'PRAGMA integrity_check;')" == ok ]] || { echo "Backup failed its integrity check" >&2; exit 1; }
+gzip "$FILE"
+chmod 600 "$FILE.gz"
+find "$DEST" -name 'netcore-*.sqlite3.gz' -mtime +30 -delete
+echo "Backup: $FILE.gz ($(du -h "$FILE.gz" | cut -f1))"

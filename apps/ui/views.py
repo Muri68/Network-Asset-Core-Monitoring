@@ -8,6 +8,8 @@ These views are replaced app-by-app as the phases in PLAN.md land.
 from collections import Counter
 from datetime import timedelta
 
+from django.contrib.auth.decorators import login_not_required
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -17,7 +19,7 @@ from apps.audit.models import AuditLog
 from apps.inventory.models import Device
 from apps.ipam.models import Prefix
 from apps.monitoring import stats as monitor_stats
-from apps.monitoring.models import Incident, MaintenanceWindow, Monitor, human_duration
+from apps.monitoring.models import Incident, MaintenanceWindow, Monitor, MonitorHeartbeat, human_duration
 
 from . import fake_data as fd
 
@@ -114,6 +116,15 @@ def _busiest_prefixes(limit=6):
 def dashboard_live(request):
     """HTMX poll target: the refreshed status rings."""
     return render(request, "partials/status_overview.html", _dashboard_counters())
+
+
+@login_not_required
+def health(request):
+    """For uptime checks of NetCore itself: 200 when the database answers and the checker is running."""
+    beat = MonitorHeartbeat.current()
+    monitor = bool(beat and beat.alive)
+    Device.objects.exists()  # raises (→ 500) if the database is unreachable
+    return JsonResponse({"web": "ok", "monitor": "ok" if monitor else "down"}, status=200 if monitor else 503)
 
 
 # --------------------------------------------------------------------------

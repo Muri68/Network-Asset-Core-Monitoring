@@ -85,7 +85,7 @@ POST_ONLY = {
     "vault:credential_copied", "vault:credential_delete", "vault:history_reveal", "vault:folder_delete",
     "alerts:settings_save", "alerts:settings_test", "alerts:link", "alerts:unlink", "alerts:mute", "alerts:test",
 }
-PUBLIC = {"accounts:login", "accounts:login_password", "accounts:login_2fa_setup", "accounts:login_2fa"}
+PUBLIC = {"ui:health", "accounts:login", "accounts:login_password", "accounts:login_2fa_setup", "accounts:login_2fa"}
 SPECIAL = {"accounts:backup_codes", "accounts:reveal_code_setup", "accounts:user_edit"}
 
 

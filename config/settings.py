@@ -50,6 +50,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.core.middleware.ProxyClientIPMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -140,6 +141,38 @@ NETCORE_MAX_2FA_FAILURES = 5
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 
+# --------------------------------------------------------------------------
+# Production behind Nginx (deploy/): Nginx terminates HTTPS and passes the client's
+# address in X-Real-IP and the scheme in X-Forwarded-Proto.
+# --------------------------------------------------------------------------
+
+BEHIND_PROXY = env_bool("NETCORE_BEHIND_PROXY", False)
+if BEHIND_PROXY:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = BEHIND_PROXY
+# The browser address, e.g. https://10.255.15.66 (needed for forms posted over HTTPS through the proxy).
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+# HSTS stays off by default: with a self-signed certificate on a DNS name it would stop people from
+# getting past the browser's certificate warning. Turn it on once the certificate is trusted on staff PCs.
+SECURE_HSTS_SECONDS = int(os.environ.get("NETCORE_HSTS_SECONDS", "0"))
+SILENCED_SYSTEM_CHECKS = [] if SECURE_HSTS_SECONDS else ["security.W004"]
+
+# Uploads are spreadsheets of at most 5 MB (apps/dataio/files.py); Nginx caps request bodies too.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+
+# Errors and warnings to stderr; systemd's journal keeps them (journalctl -u netcore-web).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"plain": {"format": "%(levelname)s %(name)s: %(message)s"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {"django": {"handlers": ["console"], "level": "WARNING", "propagate": False}},
+}
+
 # Two-factor (TOTP authenticator apps)
 OTP_TOTP_ISSUER = "NetCore"
 
@@ -166,7 +199,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = Path(os.environ.get("NETCORE_STATIC_ROOT", BASE_DIR / "staticfiles"))
 
 TAILWIND_CLI_SRC_CSS = "assets/css/source.css"
 TAILWIND_CLI_DIST_CSS = "css/app.css"
