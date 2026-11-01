@@ -39,10 +39,18 @@ PAGES = [
     ("dcim:pattern_preview", [], "view"),
     ("inventory:device_models", [], "view"),
     ("inventory:device_model_edit", ["model"], "edit"),
-    ("ui:prefixes", [], "view"),
-    ("ui:prefix_detail", [1], "view"),
-    ("ui:isps", [], "view"),
-    ("ui:calculator", [], "view"),
+    ("ipam:prefixes", [], "view"),
+    ("ipam:prefix_detail", ["prefix"], "view"),
+    ("ipam:prefix_new", [], "edit"),
+    ("ipam:prefix_edit", ["prefix"], "edit"),
+    ("ipam:ip_new", [], "edit"),
+    ("ipam:ip_edit", ["ip"], "edit"),
+    ("ipam:isps", [], "view"),
+    ("ipam:isp_new", [], "edit"),
+    ("ipam:isp_edit", ["isp"], "edit"),
+    ("ipam:circuit_new", [], "edit"),
+    ("ipam:circuit_edit", ["circuit"], "edit"),
+    ("ipam:calculator", [], "view"),
     ("ui:vault", [], "vault"),
     ("ui:credential_detail", [1], "vault"),
     ("ui:reveal_log", [], "vault"),
@@ -54,7 +62,8 @@ PAGES = [
     ("accounts:profile", [], "view"),
 ]
 
-POST_ONLY = {"dcim:vlan_delete", "dcim:connection_delete", "dcim:port_delete", "dcim:ports_bulk_add",
+POST_ONLY = {"ipam:prefix_delete", "ipam:ip_delete", "ipam:isp_delete", "ipam:circuit_delete",
+             "dcim:vlan_delete", "dcim:connection_delete", "dcim:port_delete", "dcim:ports_bulk_add",
              "dcim:ports_apply_template", "inventory:device_retire", "inventory:device_delete", "inventory:rack_delete",
              "inventory:location_delete", "ui:credential_reveal", "ui:import_preview", "accounts:user_create",
              "accounts:user_action",
@@ -68,7 +77,7 @@ def test_every_url_is_covered():
     from django.urls import get_resolver
 
     names = set()
-    for ns in ("ui", "accounts", "audit", "inventory", "dcim"):
+    for ns in ("ui", "accounts", "audit", "inventory", "dcim", "ipam"):
         resolver = get_resolver().namespace_dict[ns][1]
         names |= {f"{ns}:{n}" for n in resolver.reverse_dict if isinstance(n, str)}
     covered = {name for name, _, _ in PAGES} | POST_ONLY | PUBLIC | SPECIAL
@@ -87,8 +96,15 @@ def objects(db):
     (b_port,), _ = create_ports(other, ["Gi1/0/10"])
     connection = Connection.objects.create(a_port=a_port, b_port=b_port, function="Uplink")
     vlan = VLAN.objects.create(vid=10, name="Management")
+    from apps.ipam.models import ISP, Circuit, IPAddress, Prefix
+
+    prefix = Prefix.objects.create(cidr="129.205.100.128/28", kind="public")
+    ip = IPAddress.objects.create(address="129.205.100.131", device=device)
+    isp = ISP.objects.create(name="FibreLink")
+    circuit = Circuit.objects.create(isp=isp, circuit_id="FL-1")
     return {"device": device.pk, "rack": device.rack.pk, "location": device.location.pk, "port": a_port.pk,
-            "connection": connection.pk, "vlan": vlan.pk, "model": device.device_model.pk}
+            "connection": connection.pk, "vlan": vlan.pk, "model": device.device_model.pk, "prefix": prefix.pk,
+            "ip": ip.pk, "isp": isp.pk, "circuit": circuit.pk}
 
 
 def resolve(args, objects):

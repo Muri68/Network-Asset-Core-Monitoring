@@ -12,6 +12,7 @@ from apps.accounts.decorators import capability_required
 from apps.audit.models import AuditLog
 from apps.dcim.models import Port
 from apps.dcim.views import device_ports_context
+from apps.ipam.views import device_ips
 
 from .forms import DeviceForm, DeviceModelForm, LocationForm, RackForm, parse_attributes
 from .models import DEVICE_ICONS, Device, DeviceAttribute, DeviceModel, DeviceType, Location, Manufacturer, Rack
@@ -98,6 +99,7 @@ def device_detail(request, pk):
     ).select_related("object_type")[:50]
     return render(request, "inventory/device_detail.html", {
         **device_ports_context(device),
+        **device_ips(device),
         "d": device,
         "attributes": device.attributes.all(),
         "children": device.children.exclude(status=Device.Status.RETIRED).select_related("device_model"),

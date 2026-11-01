@@ -5,5 +5,6 @@ urlpatterns = [
     path("", include("apps.audit.urls")),
     path("", include("apps.inventory.urls")),
     path("", include("apps.dcim.urls")),
+    path("", include("apps.ipam.urls")),
     path("", include("apps.ui.urls")),
 ]

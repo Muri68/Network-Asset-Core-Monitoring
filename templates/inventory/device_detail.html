@@ -114,13 +114,37 @@
 
   {# ---------------- Coming in later phases ---------------- #}
   <div x-show="tab==='ports'" x-cloak>{% include "inventory/partials/ports_tab.html" %}</div>
-  <section x-show="tab==='ips'" x-cloak class="card">
-    {% if d.mgmt_ip %}
-      <div class="table-wrap"><table class="table"><thead><tr><th>IP address</th><th>Use</th></tr></thead>
-        <tbody><tr><td class="mono font-medium">{{ d.mgmt_ip }}</td><td>Management</td></tr></tbody></table></div>
-      <p class="hint px-5 pb-5">Other IP assignments (public IPs, NAT) arrive with IP address management.</p>
+  <section x-show="tab==='ips'" x-cloak class="card overflow-hidden">
+    <div class="flex flex-wrap items-center gap-2 border-b border-line p-3">
+      <span class="text-[13px] font-semibold">{{ ip_records|length|add:mgmt_count }} IP address{{ ip_records|length|add:mgmt_count|pluralize:"es" }}</span>
+      {% if can.edit %}<a href="{% url 'ipam:ip_new' %}?device={{ d.pk }}&next={{ request.path|urlencode }}%3Ftab%3Dips" class="btn btn-primary btn-sm ml-auto">{% icon "plus" "size-3.5" %} Assign IP</a>{% endif %}
+    </div>
+    {% if d.mgmt_ip or ip_records %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>IP address</th><th>Use</th><th class="hidden md:table-cell">Prefix</th><th class="hidden md:table-cell">DNS</th><th class="hidden lg:table-cell">NAT</th><th></th></tr></thead>
+          <tbody>
+            {% if d.mgmt_ip and not mgmt_in_ipam %}
+              <tr><td class="mono font-medium">{{ d.mgmt_ip }}</td><td>Management</td>
+                <td class="mono hidden text-xs md:table-cell">{% if mgmt_prefix %}<a class="hover:underline" href="{{ mgmt_prefix.get_absolute_url }}">{{ mgmt_prefix }}</a>{% else %}<span class="text-faint">Not in a recorded prefix</span>{% endif %}</td>
+                <td class="hidden md:table-cell"></td><td class="hidden lg:table-cell"></td>
+                <td class="text-right">{% if can.edit %}<a class="btn btn-ghost btn-sm" href="{% url 'inventory:device_edit' d.pk %}">Edit</a>{% endif %}</td></tr>
+            {% endif %}
+            {% for ip in ip_records %}
+              <tr>
+                <td class="mono font-medium">{{ ip.address }}</td>
+                <td>{{ ip.service|default:ip.get_status_display }}{% if ip.port %}<div class="mono text-xs text-muted">{{ ip.port.name }}</div>{% endif %}</td>
+                <td class="mono hidden text-xs md:table-cell">{% if ip.prefix %}<a class="hover:underline" href="{{ ip.prefix.get_absolute_url }}">{{ ip.prefix }}</a>{% else %}<span class="text-faint">—</span>{% endif %}</td>
+                <td class="mono hidden text-xs text-ink-2 md:table-cell">{{ ip.dns_name }}</td>
+                <td class="mono hidden text-xs text-muted lg:table-cell">{% if ip.nat_to %}→ {{ ip.nat_to }}{% if ip.nat_ports %} : {{ ip.nat_ports }}{% endif %}{% endif %}</td>
+                <td class="text-right">{% if can.edit %}<a class="btn btn-ghost btn-icon btn-sm" href="{% url 'ipam:ip_edit' ip.pk %}?next={{ request.path|urlencode }}%3Ftab%3Dips" aria-label="Edit {{ ip.address }}">{% icon "pencil" "size-3.5" %}</a>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
-      {% include "components/empty_state.html" with icon="globe" title="No IP addresses" text="Add a management IP by editing the device. Full IP address management comes in a later step." %}
+      {% include "components/empty_state.html" with icon="globe" title="No IP addresses" text="Set a management IP when editing the device, or assign other addresses (e.g. a public IP with NAT) here." %}
     {% endif %}
   </section>
   <section x-show="tab==='monitors'" x-cloak class="card">

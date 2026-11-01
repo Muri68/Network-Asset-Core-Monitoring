@@ -2,6 +2,7 @@ from django.urls import reverse
 
 from apps.accounts.roles import can
 from apps.inventory.models import Device
+from apps.ipam.models import IPAddress, Prefix
 
 from . import fake_data as fd
 
@@ -21,9 +22,9 @@ NAV = [
         ("vlans", "VLANs", "hash", "dcim:vlans", "view"),
     ]),
     ("IP addressing", [
-        ("prefixes", "Prefixes & IPs", "globe", "ui:prefixes", "view"),
-        ("isps", "ISPs & circuits", "building-2", "ui:isps", "view"),
-        ("calculator", "Subnet calculator", "grid-3x3", "ui:calculator", "view"),
+        ("prefixes", "Prefixes & IPs", "globe", "ipam:prefixes", "view"),
+        ("isps", "ISPs & circuits", "building-2", "ipam:isps", "view"),
+        ("calculator", "Subnet calculator", "grid-3x3", "ipam:calculator", "view"),
     ]),
     ("Security", [
         ("vault", "Password vault", "folder-lock", "ui:vault", "vault"),
@@ -54,10 +55,11 @@ def _search_index(user, nav):
                "url": d.get_absolute_url(), "icon": d.icon} for d in devices]
     items += [{"kind": "Monitor", "label": m["name"], "sub": m["target"],
                "url": reverse("ui:monitor_detail", args=[m["id"]]), "icon": "activity"} for m in fd.MONITORS]
-    items += [{"kind": "Prefix", "label": p["cidr"], "sub": p["desc"],
-               "url": reverse("ui:prefix_detail", args=[p["id"]]), "icon": "globe"} for p in fd.PREFIXES]
-    items += [{"kind": "IP", "label": ip, "sub": a["service"],
-               "url": reverse("ui:prefixes"), "icon": "map-pin"} for ip, a in fd.IP_ASSIGNMENTS.items()]
+    items += [{"kind": "Prefix", "label": p.cidr, "sub": p.description or p.get_kind_display(),
+               "url": p.get_absolute_url(), "icon": "globe"} for p in Prefix.objects.all()]
+    items += [{"kind": "IP", "label": ip.address, "sub": ip.service or (ip.device.name if ip.device else ""),
+               "url": ip.prefix.get_absolute_url() if ip.prefix else reverse("ipam:prefixes"), "icon": "map-pin"}
+              for ip in IPAddress.objects.select_related("device", "prefix")]
     if can(user, "vault"):
         items += [{"kind": "Credential", "label": c["name"], "sub": c["username"],
                    "url": reverse("ui:credential_detail", args=[c["id"]]), "icon": "key-round"}

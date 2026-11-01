@@ -214,6 +214,17 @@ class Device(TrackedModel):
                 errors["mac"] = e.messages
         if self.asset_tag == "":
             self.asset_tag = None
+        if self.mgmt_ip:
+            from apps.ipam.models import IPAddress
+
+            record = IPAddress.objects.filter(address=self.mgmt_ip).select_related("device").first()
+            # Fine if IPAM already lists it for this very device; otherwise it's taken.
+            if record is not None and (self.pk is None or record.device_id != self.pk):
+                if record.device_id:
+                    owner = f"assigned to {record.device}"
+                else:
+                    owner = f"recorded in IPAM ({record.service or record.get_status_display()})"
+                errors["mgmt_ip"] = f"{self.mgmt_ip} is already {owner}."
 
         if self.rack_id:
             if self.location_id and self.rack.location_id != self.location_id:

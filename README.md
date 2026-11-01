@@ -9,8 +9,9 @@ rack/port documentation and an audited password vault. See [PLAN.md](PLAN.md) fo
 **Live:** sign-in with mandatory two-factor (authenticator app + backup codes), roles
 (Admin / Engineer / Viewer), user management, profile, vault reveal-code setup, and an
 append-only **audit log** of every sign-in, security event and change.
-**Also live:** locations, racks, devices, device models, ports, VLANs, connections and cable tracing.
-**Still sample data:** monitoring, IPAM, vault contents, settings.
+**Also live:** locations, racks, devices, device models, ports, VLANs, connections, cable tracing,
+ISPs, circuits, prefixes and IP addresses (IPAM).
+**Still sample data:** monitoring, vault contents, settings.
 
 Want sample devices to look around? `python manage.py load_demo_inventory` loads 30 demo devices
 and 3 racks with their ports, VLANs and cables — only into an empty inventory, and they're real records
@@ -53,6 +54,7 @@ apps/audit/        Append-only audit log: log_event(), track(Model), viewer and 
 apps/core/         Shared base model (created/updated by) and form styling
 apps/inventory/    Locations, racks, devices, device models, rack elevations
 apps/dcim/         Ports, VLANs, connections, port patterns, cable tracing
+apps/ipam/         ISPs, circuits, prefixes (subnet maths), IP addresses, NAT
 apps/ui/           Sample-data views (replaced area by area), template tags
 templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
 tests/             pytest suite

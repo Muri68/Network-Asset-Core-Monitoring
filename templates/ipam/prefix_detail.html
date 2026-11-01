@@ -9,58 +9,74 @@
     <div class="flex flex-wrap items-center gap-2">
       <h1 class="mono text-xl font-semibold tracking-tight">{{ p.cidr }}</h1>
       {% if p.kind == "public" %}<span class="pill pill-up">{% icon "globe" "size-3" %} Public</span>{% else %}<span class="pill pill-muted">{% icon "lock" "size-3" %} Private</span>{% endif %}
-      {% if p.vlan %}<span class="tag">VLAN {{ p.vlan }}</span>{% endif %}
+      {% if p.vlan %}<span class="tag">VLAN {{ p.vlan.vid }} · {{ p.vlan.name }}</span>{% endif %}
+      {% if p.status != "active" %}<span class="pill pill-warn">{{ p.get_status_display }}</span>{% endif %}
     </div>
-    <p class="mt-1 text-[13px] text-muted">{{ p.desc }}{% if p.isp %} · {{ p.isp }}{% endif %}</p>
+    <p class="mt-1 text-[13px] text-muted">{{ p.description|default:"No description" }}{% if p.isp %} · {{ p.isp }}{% endif %}{% if p.circuit %} · circuit <span class="mono">{{ p.circuit }}</span>{% endif %}{% if p.location %} · {{ p.location }}{% endif %}</p>
+    {% if parent or children %}
+      <p class="mt-1 text-xs text-muted">
+        {% if parent %}Inside <a class="mono text-ink-2 hover:underline" href="{{ parent.get_absolute_url }}">{{ parent }}</a>{% endif %}
+        {% if children %}{% if parent %} · {% endif %}Contains {% for c in children %}<a class="mono text-ink-2 hover:underline" href="{{ c.get_absolute_url }}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+      </p>
+    {% endif %}
   </div>
-  <div class="flex gap-2">{% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-assign', { ip: '' })">{% icon "plus" %} Assign IP</button>{% endif %}</div>
+  {% if can.edit %}
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'ipam:prefix_edit' p.pk %}" class="btn">{% icon "pencil" %} Edit</a>
+      {% if next_free %}<a href="{% url 'ipam:ip_new' %}?address={{ next_free }}" class="btn btn-primary">{% icon "plus" %} Assign next free ({{ next_free }})</a>{% endif %}
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
   <section class="card p-5">
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">
-      <div class="inset p-3"><div class="text-[11px] text-muted">Network address</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.network }}</div></div>
-      <div class="inset p-3"><div class="text-[11px] text-muted">Gateway</div><div class="mono mt-1 text-[13px] font-semibold text-up">{{ p.gateway }}</div></div>
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div class="inset p-3"><div class="text-[11px] text-muted">Network address</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.network_address }}</div></div>
+      <div class="inset p-3"><div class="text-[11px] text-muted">Gateway</div><div class="mono mt-1 text-[13px] font-semibold text-up">{{ p.gateway|default:"—" }}</div></div>
       <div class="inset p-3"><div class="text-[11px] text-muted">Netmask</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.netmask }} <span class="text-muted">/{{ p.prefixlen }}</span></div></div>
       <div class="inset p-3"><div class="text-[11px] text-muted">Wildcard</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.wildcard }}</div></div>
-      <div class="inset p-3"><div class="text-[11px] text-muted">First usable</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.first }}</div></div>
-      <div class="inset p-3"><div class="text-[11px] text-muted">Last usable</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.last }}</div></div>
-      <div class="inset p-3"><div class="text-[11px] text-muted">Broadcast</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.broadcast }}</div></div>
+      <div class="inset p-3"><div class="text-[11px] text-muted">First usable</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.first_usable }}</div></div>
+      <div class="inset p-3"><div class="text-[11px] text-muted">Last usable</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.last_usable }}</div></div>
+      <div class="inset p-3"><div class="text-[11px] text-muted">Broadcast</div><div class="mono mt-1 text-[13px] font-semibold">{{ p.broadcast|default:"— (none for /31, /32)" }}</div></div>
       <div class="inset p-3"><div class="text-[11px] text-muted">Total / usable</div><div class="mt-1 text-[13px] font-semibold tabular-nums">{{ p.total }} / {{ p.usable }}</div></div>
     </div>
     <div class="mt-5">
       <div class="mb-1.5 flex flex-wrap justify-between gap-2 text-xs">
-        <span class="text-muted">{{ status_counts.used|default:0 }} used · {{ status_counts.reserved|default:0 }} reserved · {{ status_counts.free|default:0 }} free</span>
-        <span class="font-semibold">{{ p.pct }}% utilised</span>
+        <span class="text-muted">{{ used_count }} used or reserved · {{ free_count }} free{% if counts.dhcp %} · {{ counts.dhcp }} DHCP{% endif %}</span>
+        <span class="font-semibold">{{ pct }}% utilised</span>
       </div>
-      <div class="meter meter-{{ p.pct|pct_tone }} h-2.5"><span style="width: {{ p.pct }}%"></span></div>
+      <div class="meter meter-{{ pct|pct_tone }} h-2.5"><span style="width: {{ pct }}%"></span></div>
     </div>
   </section>
 
   <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
     <section class="card self-start xl:col-span-4">
-      <div class="card-head"><h2 class="card-title">Address map</h2>{% if ips|length > 256 %}<span class="text-[11px] text-muted">First 256 of {{ ips|length }}</span>{% endif %}</div>
+      <div class="card-head"><h2 class="card-title">Address map</h2>{% if map_truncated %}<span class="text-[11px] text-muted">First 256 of {{ p.total }}</span>{% endif %}</div>
       <div class="card-body">
-        <div class="grid gap-1 {% if grid|length <= 16 %}grid-cols-4{% elif grid|length <= 64 %}grid-cols-8{% else %}grid-cols-16{% endif %}">
-          {% for r in grid %}
-            <button type="button" x-data {% if can.edit %}@click="$dispatch('open-assign', { ip: '{{ r.ip }}' })"{% else %}disabled{% endif %} title="{{ r.ip }}{% if r.service %} · {{ r.service }}{% endif %}"
-               class="aspect-square rounded-[4px] border text-[9px] font-semibold transition hover:brightness-125
+        <div class="grid gap-1 {% if map|length <= 16 %}grid-cols-4{% elif map|length <= 64 %}grid-cols-8{% else %}grid-cols-16{% endif %}">
+          {% for r in map %}
+            <a {% if r.status == "free" and can.edit %}href="{% url 'ipam:ip_new' %}?address={{ r.address }}"{% elif r.record and can.edit %}href="{% url 'ipam:ip_edit' r.record.pk %}"{% endif %}
+               title="{{ r.address }}{% if r.record.service %} · {{ r.record.service }}{% elif r.mgmt_device %} · {{ r.mgmt_device }} management{% elif r.role == 'gateway' %} · gateway{% endif %}"
+               class="grid aspect-square place-items-center rounded-[4px] border text-[9px] font-semibold transition hover:brightness-125
                {% if r.role == 'network' or r.role == 'broadcast' %}border-maint/40 bg-maint-soft text-maint
                {% elif r.role == 'gateway' %}border-accent bg-up-soft text-up
                {% elif r.status == 'used' %}border-transparent bg-up text-accent-ink
                {% elif r.status == 'reserved' %}border-warn/40 bg-warn-soft text-warn
-               {% else %}border-line bg-surface-2 text-faint{% endif %}">{% if grid|length <= 64 %}.{{ r.ip|slice:"-3:"|cut:"." }}{% endif %}</button>
+               {% elif r.status == 'dhcp' %}border-info/40 bg-info-soft text-info
+               {% else %}border-line bg-surface-2 text-faint{% endif %}">{% if map|length <= 64 %}.{{ r.address|slice:"-3:"|cut:"." }}{% endif %}</a>
           {% endfor %}
         </div>
         <div class="mt-4 grid grid-cols-2 gap-2 text-[11px] text-muted">
           <span class="flex items-center gap-1.5"><span class="size-3 rounded-[3px] bg-up"></span>Used</span>
           <span class="flex items-center gap-1.5"><span class="size-3 rounded-[3px] border border-accent bg-up-soft"></span>Gateway</span>
           <span class="flex items-center gap-1.5"><span class="size-3 rounded-[3px] border border-warn/40 bg-warn-soft"></span>Reserved</span>
+          <span class="flex items-center gap-1.5"><span class="size-3 rounded-[3px] border border-info/40 bg-info-soft"></span>DHCP</span>
           <span class="flex items-center gap-1.5"><span class="size-3 rounded-[3px] border border-maint/40 bg-maint-soft"></span>Network / broadcast</span>
           <span class="flex items-center gap-1.5"><span class="size-3 rounded-[3px] border border-line bg-surface-2"></span>Free</span>
         </div>
+        {% if can.edit %}<p class="hint mt-3">Click a free square to assign it, or a used one to edit.</p>{% endif %}
       </div>
     </section>
 
@@ -68,23 +84,45 @@
       <div class="flex flex-wrap items-center gap-2 border-b border-line p-3">
         <a href="?show=all" class="chip {% if show == 'all' %}chip-active{% endif %}">All addresses</a>
         <a href="?show=used" class="chip {% if show == 'used' %}chip-active{% endif %}">Used & reserved only</a>
+        {% if page and page.paginator.num_pages > 1 %}
+          <div class="ml-auto flex items-center gap-1 text-xs text-muted">
+            {% if page.has_previous %}<a class="btn btn-sm" href="?show=all&page={{ page.previous_page_number }}">{% icon "chevron-left" "size-3.5" %}</a>{% endif %}
+            {% with last=rows|last %}<span class="btn btn-sm mono pointer-events-none">{{ rows.0.address }} – {{ last.address }}</span>{% endwith %}
+            {% if page.has_next %}<a class="btn btn-sm" href="?show=all&page={{ page.next_page_number }}">{% icon "chevron-right" "size-3.5" %}</a>{% endif %}
+          </div>
+        {% endif %}
       </div>
       <div class="table-wrap max-h-[640px] overflow-y-auto">
         <table class="table">
-          <thead class="sticky top-0 bg-surface"><tr><th>IP address</th><th>Status</th><th>Assigned to</th><th class="hidden md:table-cell">DNS</th><th class="hidden lg:table-cell">NAT</th><th></th></tr></thead>
+          <thead class="sticky top-0 z-10 bg-surface"><tr><th>IP address</th><th>Status</th><th>Assigned to</th><th class="hidden md:table-cell">DNS</th><th class="hidden lg:table-cell">NAT</th><th></th></tr></thead>
           <tbody>
-            {% for r in table %}
+            {% for r in rows %}
               <tr>
-                <td class="mono font-medium">{{ r.ip }}{% if r.role == "gateway" %} <span class="pill pill-up ml-1">Gateway</span>{% endif %}</td>
-                <td>{% include "components/status_pill.html" with status=r.status %}</td>
-                <td>{% if r.service %}<div class="text-[13px]">{{ r.service }}</div>{% endif %}{% if r.device %}<div class="text-xs text-muted">{{ r.device }}</div>{% endif %}{% if not r.service and not r.device %}<span class="text-faint">—</span>{% endif %}</td>
-                <td class="mono hidden text-xs whitespace-nowrap text-ink-2 md:table-cell">{{ r.dns|default:"" }}</td>
-                <td class="mono hidden text-xs whitespace-nowrap text-muted lg:table-cell">{{ r.nat|default:"" }}</td>
-                <td class="text-right" x-data>
-                  {% if not can.edit %}{% elif r.status == "free" %}<button class="btn btn-sm" @click="$dispatch('open-assign', { ip: '{{ r.ip }}' })">Assign</button>
-                  {% elif r.status != "system" %}<button class="btn btn-ghost btn-icon btn-sm" @click="$dispatch('open-assign', { ip: '{{ r.ip }}' })" aria-label="Edit">{% icon "pencil" "size-3.5" %}</button>{% endif %}
+                <td class="mono font-medium whitespace-nowrap">{{ r.address }}{% if r.role == "gateway" %} <span class="pill pill-up ml-1">Gateway</span>{% endif %}</td>
+                <td>{% if r.status == "dhcp" %}<span class="pill pill-info">DHCP</span>{% else %}{% include "components/status_pill.html" with status=r.status %}{% endif %}</td>
+                <td>
+                  {% if r.role == "network" %}<span class="text-muted">Network address</span>
+                  {% elif r.role == "broadcast" %}<span class="text-muted">Broadcast address</span>
+                  {% elif r.record %}
+                    {% if r.record.service %}<div class="text-[13px]">{{ r.record.service }}</div>{% endif %}
+                    {% if r.record.device %}<a class="text-xs text-muted hover:underline" href="{{ r.record.device.get_absolute_url }}?tab=ips">{{ r.record.device }}{% if r.record.port %} · {{ r.record.port.name }}{% endif %}</a>{% endif %}
+                    {% if not r.record.service and not r.record.device %}<span class="text-muted">{{ r.record.description|default:"—" }}</span>{% endif %}
+                  {% elif r.mgmt_device %}<div class="text-[13px]">Management</div><a class="text-xs text-muted hover:underline" href="{{ r.mgmt_device.get_absolute_url }}">{{ r.mgmt_device }}</a>
+                  {% elif r.role == "gateway" %}<span class="text-muted">Default gateway</span>
+                  {% else %}<span class="text-faint">—</span>{% endif %}
+                </td>
+                <td class="mono hidden text-xs whitespace-nowrap text-ink-2 md:table-cell">{{ r.record.dns_name|default:"" }}</td>
+                <td class="mono hidden text-xs whitespace-nowrap text-muted lg:table-cell">{% if r.record.nat_to %}→ {{ r.record.nat_to }}{% if r.record.nat_ports %} : {{ r.record.nat_ports }}{% endif %}{% endif %}</td>
+                <td class="text-right whitespace-nowrap">
+                  {% if can.edit %}
+                    {% if r.record %}<a class="btn btn-ghost btn-icon btn-sm" href="{% url 'ipam:ip_edit' r.record.pk %}" aria-label="Edit {{ r.address }}">{% icon "pencil" "size-3.5" %}</a>
+                    {% elif r.mgmt_device %}<a class="btn btn-ghost btn-sm" href="{% url 'inventory:device_edit' r.mgmt_device.pk %}">Device</a>
+                    {% elif r.status == "free" or r.role == "gateway" %}<a class="btn btn-sm" href="{% url 'ipam:ip_new' %}?address={{ r.address }}">Assign</a>{% endif %}
+                  {% endif %}
                 </td>
               </tr>
+            {% empty %}
+              <tr><td colspan="6">{% include "components/empty_state.html" with icon="map-pin" title="Nothing assigned yet" text="Every usable address in this prefix is free." %}</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -92,22 +130,4 @@
     </section>
   </div>
 </div>
-
-{% if can.edit %}
-<div x-data="{ open: false, ip: '' }" @open-assign.window="open = true; ip = $event.detail.ip" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-  <form data-prototype="IP assignment saved" @prototype-submitted="open=false" @click.outside="open=false" class="card w-full max-w-lg p-0">
-    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Assign IP address</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
-    <div class="grid gap-4 p-5 sm:grid-cols-2">
-      <div><label class="field-label">IP address</label><input class="input mono" x-model="ip" placeholder="{{ p.first }}"></div>
-      <div><label class="field-label">Status</label><select class="input"><option>Used</option><option>Reserved</option><option>Free</option></select></div>
-      <div class="sm:col-span-2"><label class="field-label">Service</label><input class="input" placeholder="e.g. Customer portal"></div>
-      <div><label class="field-label">Device</label><select class="input"><option value="">— None —</option>{% for d in devices %}<option>{{ d.name }}</option>{% endfor %}</select></div>
-      <div><label class="field-label">DNS name</label><input class="input mono" placeholder="portal.acme.example"></div>
-      <div class="sm:col-span-2"><label class="field-label">NAT to inside address</label>
-        <div class="flex gap-2"><input class="input mono" placeholder="10.10.10.11"><input class="input mono w-40" placeholder="443, 80"></div></div>
-    </div>
-    <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save</button></div>
-  </form>
-</div>
-{% endif %}
 {% endblock %}

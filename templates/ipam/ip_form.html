@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{% if ip %}Edit {{ ip }}{% else %}Assign IP address{% endif %}{% endblock %}
+{% block crumb %}IP addressing{% if prefix %} / {{ prefix }}{% endif %}{% endblock %}
+{% block heading %}{% if ip %}Edit {{ ip }}{% else %}Assign IP address{% endif %}{% endblock %}
+{% block page_title %}{% if ip %}Edit {{ ip }}{% else %}Assign IP address{% endif %}{% endblock %}
+{% block page_subtitle %}{% if prefix %}In {{ prefix }}{% if prefix.description %} — {{ prefix.description }}{% endif %}.{% else %}Not inside any recorded prefix yet — that's fine, it's still tracked.{% endif %}{% endblock %}
+
+{% block content %}
+<form method="post" class="grid grid-cols-1 gap-4 lg:grid-cols-12" novalidate>
+  {% csrf_token %}
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  <section class="card lg:col-span-8">
+    <div class="card-head"><h2 class="card-title">Assignment</h2></div>
+    <div class="card-body grid gap-4 sm:grid-cols-2">
+      <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+      {% include "components/field.html" with field=form.address %}
+      {% include "components/field.html" with field=form.status %}
+      {% include "components/field.html" with field=form.service cls="sm:col-span-2" %}
+      <div>
+        <label class="field-label" for="id_device">Device</label>
+        <select name="device" id="id_device" class="input" hx-get="{% url 'dcim:port_options' %}?all=1" hx-target="#id_port" hx-trigger="change">
+          <option value="">— None —</option>
+          {% for value, label in form.device.field.choices %}{% if value %}<option value="{{ value }}" {% if form.device.value|stringformat:'s' == value|stringformat:'s' %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}
+        </select>
+        {% for e in form.device.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+      </div>
+      <div>
+        <label class="field-label" for="id_port">Port (optional)</label>
+        <select name="port" id="id_port" class="input mono"
+                {% if form.device.value %}hx-get="{% url 'dcim:port_options' %}?device={{ form.device.value }}&keep={{ form.port.value|default:'' }}&all=1" hx-trigger="load" hx-target="this"{% endif %}>
+          <option value="">— None —</option>
+        </select>
+        {% for e in form.port.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+      </div>
+      {% include "components/field.html" with field=form.dns_name cls="sm:col-span-2" %}
+      {% include "components/field.html" with field=form.description cls="sm:col-span-2" %}
+    </div>
+  </section>
+  <div class="space-y-4 lg:col-span-4">
+    <section class="card">
+      <div class="card-head"><h2 class="card-title">NAT</h2></div>
+      <div class="card-body space-y-3">
+        {% include "components/field.html" with field=form.nat_to %}
+        {% include "components/field.html" with field=form.nat_ports %}
+      </div>
+    </section>
+    <div class="flex gap-2">
+      <a href="{% if next %}{{ next }}{% elif prefix %}{{ prefix.get_absolute_url }}{% else %}{% url 'ipam:prefixes' %}{% endif %}" class="btn flex-1">Cancel</a>
+      <button class="btn btn-primary flex-1">{% icon "check" %} Save</button>
+    </div>
+    {% if ip %}<button type="submit" form="free-ip" class="btn btn-ghost w-full text-down">{% icon "trash-2" %} Free this address</button>{% endif %}
+  </div>
+</form>
+{% if ip %}<form id="free-ip" method="post" action="{% url 'ipam:ip_delete' ip.pk %}" onsubmit="return confirm('Free {{ ip.address }}? The assignment is removed (it stays in the audit log).')">{% csrf_token %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}</form>{% endif %}
+{% endblock %}

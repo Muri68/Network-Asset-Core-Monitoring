@@ -3,31 +3,45 @@
 {% block crumb %}IP addressing{% endblock %}
 {% block heading %}Prefixes & IPs{% endblock %}
 {% block page_title %}Prefixes & IP addresses{% endblock %}
-{% block page_subtitle %}Public blocks from your ISPs and private subnets, with every IP address and who uses it.{% endblock %}
+{% block page_subtitle %}Public blocks from your ISPs and private subnets. Open one to see every address and who uses it.{% endblock %}
 {% block page_actions %}
-  <a href="{% url 'ui:calculator' %}" class="btn">{% icon "grid-3x3" %} Calculator</a>
-{% if can.edit %}  <button class="btn btn-primary" x-data @click="$dispatch('open-prefix')">{% icon "plus" %} Add prefix</button>{% endif %}
+  <a href="{% url 'ipam:calculator' %}" class="btn">{% icon "grid-3x3" %} Calculator</a>
+  {% if can.edit %}<a href="{% url 'ipam:prefix_new' %}" class="btn btn-primary">{% icon "plus" %} Add prefix</a>{% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="mb-4 flex gap-2">
+{% if not total %}
+  <section class="card">
+    {% if can.edit %}{% url 'ipam:prefix_new' as new_url %}{% endif %}
+    {% include "components/empty_state.html" with icon="globe" title="No prefixes yet" text="Add the public block your ISP gave you (e.g. 129.205.100.128/28) and your private subnets (e.g. 10.10.0.0/24)." action_url=new_url action_label="Add prefix" %}
+  </section>
+{% else %}
+<div class="mb-4 flex flex-wrap items-center gap-2">
   <a href="?" class="chip {% if not kind %}chip-active{% endif %}">All</a>
   <a href="?kind=public" class="chip {% if kind == 'public' %}chip-active{% endif %}">{% icon "globe" "size-3.5" %} Public</a>
   <a href="?kind=private" class="chip {% if kind == 'private' %}chip-active{% endif %}">{% icon "lock" "size-3.5" %} Private</a>
+  <form method="get" class="ml-auto w-full sm:w-72">
+    {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    <div class="relative"><span class="pointer-events-none absolute top-2.5 left-3 text-faint">{% icon "search" %}</span>
+      <input name="q" value="{{ q }}" class="input pl-9" placeholder="Prefix, description, ISP — or an IP"></div>
+  </form>
 </div>
 
 <section class="card overflow-hidden">
+  {% if prefixes %}
   <div class="table-wrap">
     <table class="table">
-      <thead><tr><th>Prefix</th><th>Type</th><th class="hidden md:table-cell">ISP / VLAN</th><th class="hidden lg:table-cell">Gateway</th><th>Usable</th><th class="w-56">Utilisation</th></tr></thead>
+      <thead><tr><th>Prefix</th><th>Type</th><th class="hidden md:table-cell">ISP / VLAN</th><th class="hidden lg:table-cell">Gateway</th><th class="hidden sm:table-cell">Usable</th><th class="w-56">Utilisation</th></tr></thead>
       <tbody>
         {% for p in prefixes %}
-          <tr class="cursor-pointer" onclick="window.location='{% url 'ui:prefix_detail' p.id %}'">
-            <td><div class="mono text-[13px] font-semibold">{{ p.cidr }}</div><div class="text-xs text-muted">{{ p.desc }}</div></td>
+          <tr class="cursor-pointer" onclick="window.location='{{ p.get_absolute_url }}'">
+            <td><a href="{{ p.get_absolute_url }}" class="block" style="padding-left: {% widthratio p.depth 1 18 %}px">
+              <span class="mono text-[13px] font-semibold">{% if p.depth %}<span class="text-faint">└ </span>{% endif %}{{ p.cidr }}</span>
+              <div class="text-xs text-muted">{{ p.description|default:"—" }}{% if p.status != "active" %} · {{ p.get_status_display }}{% endif %}</div></a></td>
             <td>{% if p.kind == "public" %}<span class="pill pill-up">{% icon "globe" "size-3" %} Public</span>{% else %}<span class="pill pill-muted">{% icon "lock" "size-3" %} Private</span>{% endif %}</td>
-            <td class="hidden text-ink-2 md:table-cell">{% if p.isp %}{{ p.isp }}{% endif %}{% if p.vlan %}<span class="tag ml-1">VLAN {{ p.vlan }}</span>{% endif %}</td>
-            <td class="mono hidden text-ink-2 lg:table-cell">{{ p.gateway }}</td>
-            <td class="tabular-nums">{{ p.usable }}</td>
+            <td class="hidden text-ink-2 md:table-cell">{{ p.isp|default:"" }}{% if p.vlan %}<span class="tag ml-1">VLAN {{ p.vlan.vid }}</span>{% endif %}{% if not p.isp and not p.vlan %}<span class="text-faint">—</span>{% endif %}</td>
+            <td class="mono hidden text-ink-2 lg:table-cell">{{ p.gateway|default:"—" }}</td>
+            <td class="hidden tabular-nums sm:table-cell">{{ p.usable }}</td>
             <td>
               <div class="mb-1 flex justify-between text-xs"><span class="text-muted">{{ p.used }} used</span><span class="font-semibold">{{ p.pct }}%</span></div>
               <div class="meter meter-{{ p.pct|pct_tone }}"><span style="width: {{ p.pct }}%"></span></div>
@@ -37,39 +51,9 @@
       </tbody>
     </table>
   </div>
+  {% else %}
+    {% include "components/empty_state.html" with icon="search" title="No prefixes match" text="Try another search." %}
+  {% endif %}
 </section>
-
-{% if can.edit %}
-{# Add prefix with live calculation #}
-<div x-data="{ open: false, cidr: '129.205.100.140/28', get s() { return netcore.subnet(this.cidr) } }"
-     @open-prefix.window="open = true" x-show="open" x-cloak class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-  <form data-prototype="Prefix created" @prototype-submitted="open=false" @click.outside="open=false" class="card max-h-[90vh] w-full max-w-2xl overflow-y-auto p-0">
-    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Add prefix</h2><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open=false">{% icon "x" %}</button></div>
-    <div class="grid gap-4 p-5 sm:grid-cols-2">
-      <div class="sm:col-span-2"><label class="field-label">Prefix (CIDR)</label><input x-model="cidr" class="input mono" placeholder="129.205.100.128/28" required>
-        <p class="field-error" x-show="cidr && !s">Enter an IPv4 network like 10.0.0.0/24.</p>
-        <div x-show="s && s.hostBits" class="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">
-          {% icon "triangle-alert" "size-3.5" %} <span><span class="mono" x-text="cidr"></span> has host bits set. The network is <b class="mono" x-text="s && s.cidr"></b>.</span>
-          <button type="button" class="ml-auto underline" @click="cidr = s.cidr">Use network address</button>
-        </div>
-      </div>
-      <template x-if="s">
-        <div class="grid grid-cols-2 gap-2 text-xs sm:col-span-2 sm:grid-cols-4">
-          <div class="inset p-2.5"><div class="text-muted">Network</div><div class="mono mt-0.5" x-text="s.network"></div></div>
-          <div class="inset p-2.5"><div class="text-muted">Netmask</div><div class="mono mt-0.5" x-text="s.netmask"></div></div>
-          <div class="inset p-2.5"><div class="text-muted">Broadcast</div><div class="mono mt-0.5" x-text="s.broadcast"></div></div>
-          <div class="inset p-2.5"><div class="text-muted">Usable hosts</div><div class="mono mt-0.5" x-text="s.usable"></div></div>
-          <div class="inset col-span-2 p-2.5 sm:col-span-4"><div class="text-muted">Usable range</div><div class="mono mt-0.5"><span x-text="s.first"></span> – <span x-text="s.last"></span></div></div>
-        </div>
-      </template>
-      <div><label class="field-label">Type</label><select class="input"><option>Public</option><option>Private</option></select></div>
-      <div><label class="field-label">Gateway</label><input class="input mono" :value="s ? s.gateway : ''"><p class="hint">Defaults to the first usable IP.</p></div>
-      <div><label class="field-label">ISP</label><select class="input"><option value="">— None —</option>{% for i in isps %}<option>{{ i.name }}</option>{% endfor %}</select></div>
-      <div><label class="field-label">VLAN</label><select class="input"><option value="">— None —</option>{% for v in vlans %}<option>{{ v.vid }} · {{ v.name }}</option>{% endfor %}</select></div>
-      <div class="sm:col-span-2"><label class="field-label">Description</label><input class="input" placeholder="Primary public block"></div>
-    </div>
-    <div class="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" class="btn" @click="open=false">Cancel</button><button class="btn btn-primary">Save prefix</button></div>
-  </form>
-</div>
 {% endif %}
 {% endblock %}

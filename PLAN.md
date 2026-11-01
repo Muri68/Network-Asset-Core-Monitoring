@@ -330,7 +330,13 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - Device "Ports & Connections" tab; global connections table (filter by rack, device, VLAN, function); path trace view
 - **Done when:** "Firewall port 1 → Switch port 10, function: Internet + VLAN trunk" is entered once and appears on both devices and in the global table.
 
-### Phase 4 — IPAM
+### Phase 4 — IPAM ✅ (approved by owner 2026-11-01)
+- Done: `apps/ipam` with ISP, Circuit (type, status, bandwidth, contract dates, monthly cost + currency, landing port), Prefix (calculated network/netmask/wildcard/gateway/broadcast/usable range, /31 and /32 per RFC 3021, auto public/private, nesting), IPAddress (status used/reserved/DHCP, device + port, service, DNS name, NAT target + ports).
+- **Done-when met:** typing `129.205.100.140/28` warns "host bits set — the network is 129.205.100.128/28" with a one-click fix; the saved block shows .128 / .129–.142 / .143 / 255.255.255.240 and every IP can be assigned.
+- Rules: no duplicate prefixes or IPs, network/broadcast can't be assigned, gateway must be usable, an IP can't clash with another device's management IP (checked from both sides), port must belong to the device.
+- Pages: prefix list (nested, usage bars, search by IP), prefix detail (breakdown, address map, generated address table with pagination for large prefixes, "assign next free"), prefix form with live breakdown, IP assignment form, ISPs & circuits (contract-renewal warning), device IP addresses tab, real dashboard subnet card and search palette entries.
+- **Changes from §6.4:** device management IP stays a plain field (shown as "used" on prefix pages, clash-checked) rather than a link into IPAM, so it can be recorded before its subnet exists. NAT target is a plain IP (`nat_to`) rather than a link to another record. Addresses are stored as text + integer, so this works on SQLite and PostgreSQL alike (no `django-netfields`).
+- Checks: 424 pytest tests, ruff clean, browser walk-through (caught and fixed: new prefixes defaulting to "Private" instead of automatic detection).
 - ISP, Circuit, Prefix (with calculator), IPAddress, NAT mapping
 - Prefix page with generated IP list, inline assignment, utilisation; IP ↔ device/port linking; device "IPs" tab
 - Containment & duplicate validation; `/31`, `/32` edge cases

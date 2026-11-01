@@ -15,10 +15,6 @@ urlpatterns = [
     path("maintenance/", views.maintenance, name="maintenance"),
     # Infrastructure
     # IPAM
-    path("ipam/prefixes/", views.prefixes, name="prefixes"),
-    path("ipam/prefixes/<int:pk>/", views.prefix_detail, name="prefix_detail"),
-    path("ipam/isps/", views.isps, name="isps"),
-    path("ipam/calculator/", views.calculator, name="calculator"),
     # Security
     path("vault/", views.vault, name="vault"),
     path("vault/<int:pk>/", views.credential_detail, name="credential_detail"),

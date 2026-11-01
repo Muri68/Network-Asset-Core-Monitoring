@@ -7,7 +7,8 @@ from apps.ui import fake_data as fd
 
 
 class Command(BaseCommand):
-    help = ("Load the sample locations, racks, devices, VLANs, ports and cables from the UI prototype "
+    help = ("Load the sample locations, racks, devices, VLANs, ports, cables, ISPs, prefixes and IPs "
+            "from the UI prototype "
             "(only into an empty inventory).")
 
     @transaction.atomic
@@ -53,10 +54,52 @@ class Command(BaseCommand):
                     device.parent = created[d["parent_id"]]
                     device.save()
             vlans, ports, cables = self._load_ports_and_cables(created)
+            prefixes, ips = self._load_ipam(locations)
         self.stdout.write(self.style.SUCCESS(
             f"Loaded {len(locations)} locations, {len(racks)} racks, {len(created)} devices, "
-            f"{vlans} VLANs, {ports} ports and {cables} cables."
+            f"{vlans} VLANs, {ports} ports, {cables} cables, {prefixes} prefixes and {ips} IP assignments."
         ))
+
+    def _load_ipam(self, locations):
+        import re
+        from decimal import Decimal
+
+        from apps.dcim.models import VLAN, Port
+        from apps.ipam.models import ISP, Circuit, IPAddress, Prefix
+
+        isps = {}
+        for i in fd.ISPS:
+            isp = ISP.objects.create(name=i["name"], account_number=i["account"], support_phone=i["phone"],
+                                     support_email=i["email"], account_manager=i["manager"], portal_url=i["portal"])
+            isps[isp.name] = isp
+            for c in i["circuits"]:
+                device_name, port_name = c["termination"].split(" · ")
+                cost = Decimal(re.sub(r"[^\d.]", "", c["cost"].split("/")[0]))
+                Circuit.objects.create(
+                    isp=isp, circuit_id=c["id"], bandwidth=c["bandwidth"],
+                    circuit_type=Circuit.Type.FIBRE if "Fibre" in c["type"] else Circuit.Type.RADIO,
+                    contract_end=c["contract_end"], monthly_cost=cost, currency="NGN",
+                    termination_port=Port.objects.filter(device__name=device_name, name=port_name).first(),
+                )
+        server_room = locations["HQ — Server Room"]
+        for p in fd.PREFIXES:
+            prefix = Prefix(cidr=p["cidr"], kind=p["kind"], isp=isps.get(p["isp"]), gateway=p["gateway"],
+                            description=p["desc"], location=server_room,
+                            vlan=VLAN.objects.filter(vid=p["vlan"]).first() if p["vlan"] else None)
+            if prefix.isp:
+                prefix.circuit = prefix.isp.circuits.first()
+            prefix.full_clean()
+            prefix.save()
+        count = 0
+        for address, a in fd.IP_ASSIGNMENTS.items():
+            nat = re.match(r"→ ([\d.]+) : (.+)", a["nat"] or "")
+            ip = IPAddress(address=address, status=a["status"], service=a["service"], dns_name=a["dns"],
+                           description=a["desc"], device=Device.objects.filter(name=a["device"]).first(),
+                           nat_to=nat[1] if nat else None, nat_ports=nat[2] if nat else "")
+            ip.full_clean()
+            ip.save()
+            count += 1
+        return len(fd.PREFIXES), count
 
     def _load_ports_and_cables(self, devices_by_fake_id):
         from apps.dcim.models import VLAN, Connection, ExternalEndpoint

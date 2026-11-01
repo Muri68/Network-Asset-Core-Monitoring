@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{% if prefix %}Edit {{ prefix }}{% else %}Add prefix{% endif %}{% endblock %}
+{% block crumb %}IP addressing / Prefixes{% endblock %}
+{% block heading %}{% if prefix %}Edit {{ prefix }}{% else %}Add prefix{% endif %}{% endblock %}
+{% block page_title %}{% if prefix %}Edit {{ prefix }}{% else %}Add prefix{% endif %}{% endblock %}
+{% block page_subtitle %}Network, netmask, gateway, broadcast and the usable range are worked out for you.{% endblock %}
+
+{% block content %}
+<form method="post" class="grid grid-cols-1 gap-4 lg:grid-cols-12" novalidate
+      x-data="{ cidr: '{{ form.cidr.value|default:''|escapejs }}', get s() { return netcore.subnet(this.cidr) } }">
+  {% csrf_token %}
+  <section class="card lg:col-span-7">
+    <div class="card-head"><h2 class="card-title">Prefix</h2></div>
+    <div class="card-body grid gap-4 sm:grid-cols-2">
+      <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+      <div class="sm:col-span-2">
+        <label class="field-label" for="id_cidr">Prefix (CIDR) *</label>
+        <input name="cidr" id="id_cidr" x-model="cidr" class="input mono h-11 text-base" placeholder="129.205.100.128/28" aria-invalid="{% if form.cidr.errors %}true{% else %}false{% endif %}" autofocus>
+        {% for e in form.cidr.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+        <div x-show="s && s.hostBits" x-cloak class="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">
+          {% icon "triangle-alert" "size-3.5" %}
+          <span><span class="mono" x-text="cidr"></span> has host bits set — the network is <b class="mono" x-text="s && s.cidr"></b>.</span>
+          <button type="button" class="ml-auto font-semibold underline" @click="cidr = s.cidr">Use <span x-text="s && s.cidr"></span></button>
+        </div>
+        <p class="field-error" x-show="cidr && !s" x-cloak>Enter an IPv4 network like 10.10.0.0/24.</p>
+      </div>
+      <div>
+        <label class="field-label" for="id_kind">Type</label>
+        <select name="kind" id="id_kind" class="input">
+          <option value="">Automatic (public / private)</option>
+          {% for v, l in form.kind.field.choices %}{% if v %}<option value="{{ v }}" {% if form.kind.value == v %}selected{% endif %}>{{ l }}</option>{% endif %}{% endfor %}
+        </select>
+      </div>
+      {% include "components/field.html" with field=form.status %}
+      <div class="sm:col-span-2">
+        <label class="field-label" for="id_gateway">Gateway</label>
+        <input name="gateway" id="id_gateway" value="{{ form.gateway.value|default:'' }}" class="input mono" :placeholder="s ? s.gateway + ' (first usable — default)' : ''" aria-invalid="{% if form.gateway.errors %}true{% else %}false{% endif %}">
+        {% for e in form.gateway.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+      </div>
+      {% include "components/field.html" with field=form.isp %}
+      {% include "components/field.html" with field=form.circuit %}
+      {% include "components/field.html" with field=form.vlan %}
+      {% include "components/field.html" with field=form.location %}
+      {% include "components/field.html" with field=form.description cls="sm:col-span-2" %}
+    </div>
+    <div class="flex justify-between gap-2 border-t border-line px-5 py-4">
+      {% if prefix %}<button type="submit" form="delete-prefix" class="btn btn-ghost text-down">{% icon "trash-2" %} Delete</button>{% else %}<span></span>{% endif %}
+      <div class="flex gap-2"><a href="{% if prefix %}{{ prefix.get_absolute_url }}{% else %}{% url 'ipam:prefixes' %}{% endif %}" class="btn">Cancel</a><button class="btn btn-primary">Save prefix</button></div>
+    </div>
+  </section>
+
+  <section class="card self-start lg:col-span-5">
+    <div class="card-head"><h2 class="card-title">Breakdown</h2><span class="pill" :class="s && s.kind === 'Public' ? 'pill-up' : 'pill-muted'" x-text="s ? s.kind : ''"></span></div>
+    <div class="card-body">
+      <template x-if="s">
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="inset p-2.5"><div class="text-muted">Network</div><div class="mono mt-0.5 text-[13px]" x-text="s.network"></div></div>
+          <div class="inset p-2.5"><div class="text-muted">Netmask</div><div class="mono mt-0.5 text-[13px]" x-text="s.netmask"></div></div>
+          <div class="inset p-2.5"><div class="text-muted">Gateway (default)</div><div class="mono mt-0.5 text-[13px] text-up" x-text="s.gateway"></div></div>
+          <div class="inset p-2.5"><div class="text-muted">Broadcast</div><div class="mono mt-0.5 text-[13px]" x-text="s.broadcast"></div></div>
+          <div class="inset col-span-2 p-2.5"><div class="text-muted">Usable range</div><div class="mono mt-0.5 text-[13px]"><span x-text="s.first"></span> – <span x-text="s.last"></span></div></div>
+          <div class="inset p-2.5"><div class="text-muted">Total addresses</div><div class="mt-0.5 text-[13px] font-semibold" x-text="s.total"></div></div>
+          <div class="inset p-2.5"><div class="text-muted">Usable hosts</div><div class="mt-0.5 text-[13px] font-semibold" x-text="s.usable"></div></div>
+        </div>
+      </template>
+      <p class="text-xs text-muted" x-show="!s">Type a prefix to see its breakdown.</p>
+    </div>
+  </section>
+</form>
+{% if prefix %}<form id="delete-prefix" method="post" action="{% url 'ipam:prefix_delete' prefix.pk %}" onsubmit="return confirm('Delete {{ prefix.cidr }}? IP assignments in it are kept.')">{% csrf_token %}</form>{% endif %}
+{% endblock %}

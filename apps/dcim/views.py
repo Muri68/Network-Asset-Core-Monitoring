@@ -178,7 +178,8 @@ def port_options(request):
         taken = set(Connection.objects.filter(a_port__device=device).values_list("a_port_id", flat=True))
         taken |= set(Connection.objects.filter(b_port__device=device).values_list("b_port_id", flat=True))
         for p in device.ports.all():
-            ports.append((p, p.pk in taken and str(p.pk) != keep))
+            # ?all=1 (e.g. assigning an IP to an interface): cabled ports are fine to pick.
+            ports.append((p, p.pk in taken and str(p.pk) != keep and not request.GET.get("all")))
     return render(request, "dcim/partials/port_options.html", {"ports": ports, "device": device, "keep": keep})
 
 

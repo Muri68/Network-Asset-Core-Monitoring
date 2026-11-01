@@ -18,6 +18,7 @@ from apps.accounts.decorators import capability_required
 from apps.accounts.roles import can
 from apps.audit.models import AuditLog
 from apps.inventory.models import Device
+from apps.ipam.models import Prefix
 
 from . import fake_data as fd
 
@@ -75,15 +76,12 @@ def dashboard(request):
         "up_count": up_count,
         "devices_total": sum(type_counts.values()),
         "device_types": len(type_counts),
-        "public_prefixes": [p for p in fd.PREFIXES if p["kind"] == "public"],
-        "public_used": sum(p["used"] for p in fd.PREFIXES if p["kind"] == "public"),
-        "public_usable": sum(p["usable"] for p in fd.PREFIXES if p["kind"] == "public"),
         "open_incidents": [i for i in fd.INCIDENTS if i["status"] == "open"],
         "alerts": fd.ALERTS[:5],
         "ssl": sorted((m for m in fd.MONITORS if m["cert_days"] is not None), key=lambda m: m["cert_days"]),
         "warranty": warranty,
         "recent_audit": AuditLog.objects.select_related("object_type")[:6] if can(request.user, "audit") else [],
-        "prefixes": fd.PREFIXES,
+        "prefixes": _busiest_prefixes(),
         "maintenance_active": [m for m in fd.MAINTENANCE if m["state"] == "active"],
         "chart_uptime": {
             "labels": [(today - timedelta(days=13 - i)).strftime("%d %b") for i in range(14)],
@@ -102,6 +100,16 @@ def dashboard(request):
                                  donut_vals, ["maint", "up", "warn", "unreach", "paused"], donut_keys, strict=True)),
     }
     return _page(request, "monitoring/dashboard.html", "dashboard", **ctx)
+
+
+def _busiest_prefixes(limit=6):
+    from apps.ipam.views import _mgmt_ips, utilisation
+
+    mgmt = _mgmt_ips()
+    rows = list(Prefix.objects.exclude(status=Prefix.Status.DEPRECATED))
+    for p in rows:
+        p.used, p.pct = utilisation(p, mgmt)
+    return sorted(rows, key=lambda p: -p.pct)[:limit]
 
 
 def dashboard_live(request):
@@ -170,31 +178,6 @@ def maintenance(request):
 # --------------------------------------------------------------------------
 # IPAM
 # --------------------------------------------------------------------------
-
-
-def prefixes(request):
-    kind = request.GET.get("kind", "")
-    rows = [p for p in fd.PREFIXES if not kind or p["kind"] == kind]
-    return _page(request, "ipam/prefixes.html", "prefixes", prefixes=rows, kind=kind, isps=fd.ISPS, vlans=fd.VLANS)
-
-
-def prefix_detail(request, pk):
-    p = _get(fd.PREFIXES_BY_ID, pk)
-    ips = fd.prefix_ips(p)
-    show = request.GET.get("show", "all" if len(ips) <= 64 else "used")
-    table = ips if show == "all" else [r for r in ips if r["status"] != "free"]
-    return _page(request, "ipam/prefix_detail.html", "prefixes", p=p, ips=ips, grid=ips[:256], table=table,
-                 show=show, devices=fd.DEVICES,
-                 status_counts=Counter(r["status"] for r in ips))
-
-
-def isps(request):
-    return _page(request, "ipam/isps.html", "isps", isps=fd.ISPS,
-                 prefixes=[p for p in fd.PREFIXES if p["kind"] == "public"], today=timezone.localdate())
-
-
-def calculator(request):
-    return _page(request, "ipam/calculator.html", "calculator")
 
 
 # --------------------------------------------------------------------------
