@@ -32,8 +32,14 @@ def _page(request, template, active, **ctx):
 # --------------------------------------------------------------------------
 
 
+# (status, label, colour) of the dashboard rings; each links to the monitor list filtered by that status.
+STATUS_RINGS = [("up", "Up", "up"), ("down", "Down", "down"), ("unreachable", "Unreachable", "unreach"),
+                ("maintenance", "Maintenance", "maint"), ("pending", "Pending", "pending"),
+                ("paused", "Paused", "paused")]
+
+
 def _dashboard_counters():
-    return {"counts": monitor_stats.status_counts(), "total": Monitor.objects.count(), "updated": timezone.now()}
+    return {"counts": monitor_stats.status_counts(), "total": Monitor.objects.count(), "rings": STATUS_RINGS}
 
 
 def dashboard(request):
@@ -106,8 +112,8 @@ def _busiest_prefixes(limit=6):
 
 
 def dashboard_live(request):
-    """HTMX poll target: refreshed status counters."""
-    return render(request, "partials/status_counters.html", _dashboard_counters())
+    """HTMX poll target: the refreshed status rings."""
+    return render(request, "partials/status_overview.html", _dashboard_counters())
 
 
 # --------------------------------------------------------------------------

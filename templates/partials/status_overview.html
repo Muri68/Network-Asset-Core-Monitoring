@@ -1,0 +1,10 @@
+{# Dashboard status rings: each opens the monitor list filtered by that status. Refreshed every 10 s. #}
+<div id="status-overview" class="grid grid-cols-3 gap-y-5 py-3 sm:grid-cols-6"
+     hx-get="{% url 'ui:dashboard_live' %}" hx-trigger="every 10s" hx-swap="outerHTML" hx-headers='{"X-Background": "1"}'>
+  {% for status, label, tone in rings %}
+    <a href="{% url 'monitoring:monitors' %}?status={{ status }}" class="rounded-xl py-2 transition hover:bg-surface-2 focus-visible:bg-surface-2"
+       title="Show {{ label|lower }} monitors">
+      {% ring counts|get:status total label tone %}
+    </a>
+  {% endfor %}
+</div>

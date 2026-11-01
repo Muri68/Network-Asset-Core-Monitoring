@@ -1,9 +1,0 @@
-<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" id="status-counters"
-     hx-get="{% url 'ui:dashboard_live' %}" hx-trigger="every 10s" hx-swap="outerHTML" hx-headers='{"X-Background": "1"}'>
-  {% include "partials/counter.html" with label="Up" value=counts.up tone="up" icon_name="circle-check" status="up" %}
-  {% include "partials/counter.html" with label="Down" value=counts.down tone="down" icon_name="circle-x" status="down" bad=True %}
-  {% include "partials/counter.html" with label="Unreachable" value=counts.unreachable tone="unreach" icon_name="git-branch" status="unreachable" bad=True %}
-  {% include "partials/counter.html" with label="Maintenance" value=counts.maintenance tone="maint" icon_name="wrench" status="maintenance" %}
-  {% include "partials/counter.html" with label="Pending" value=counts.pending tone="pending" icon_name="timer" status="pending" %}
-  {% include "partials/counter.html" with label="Paused" value=counts.paused tone="paused" icon_name="circle-pause" status="paused" %}
-</div>

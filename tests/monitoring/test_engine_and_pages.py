@@ -299,6 +299,19 @@ class TestDashboard:
         assert "HR portal" in html and "HTTP 503" in html and "Checker running" in html
         assert "The checker isn't running" not in html
 
+    def test_status_rings_link_to_filtered_monitor_lists(self, as_user, viewer):
+        make_monitor("Website", status="up")
+        client = as_user(viewer)
+        html = client.get(reverse("ui:dashboard")).content.decode()
+        monitors = reverse("monitoring:monitors")
+        for status in ("up", "down", "unreachable", "maintenance", "pending", "paused"):
+            assert f'href="{monitors}?status={status}"' in html
+        assert 'id="status-counters"' not in html  # the counter cards are gone
+        assert html.index("Network health") < html.index("SSL certificates") < html.index("Daily uptime")
+        assert html.index("Status overview") < html.index("Inventory by type") < html.index("Daily uptime")
+        live = client.get(reverse("ui:dashboard_live"), headers={"X-Background": "1"}).content.decode()
+        assert 'id="status-overview"' in live and f'href="{monitors}?status=down"' in live
+
 
 def test_response_series_starts_where_data_starts():
     m = make_monitor()

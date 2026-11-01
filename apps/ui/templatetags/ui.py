@@ -75,7 +75,7 @@ def ring(value, total, label, tone="up", size=84):
     circumference = 2 * 3.14159 * radius
     fraction = (value / total) if total else 0
     return {
-        "value": value, "label": label, "tone": tone, "size": size, "r": radius,
+        "value": value, "total": total, "label": label, "tone": tone, "size": size, "r": radius,
         "circ": round(circumference, 2), "dash": round(circumference * fraction, 2),
     }
 
