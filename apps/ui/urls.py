@@ -7,15 +7,7 @@ app_name = "ui"
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("dashboard/live/", views.dashboard_live, name="dashboard_live"),
-    # Monitoring
-    # Infrastructure
-    # IPAM
-    # Security
-    path("vault/", views.vault, name="vault"),
-    path("vault/<int:pk>/", views.credential_detail, name="credential_detail"),
-    path("vault/<int:pk>/reveal/", views.credential_reveal, name="credential_reveal"),
-    path("vault/log/", views.reveal_log, name="reveal_log"),
-    # Administration
+    # Administration (sample data until Phase 8 / later settings)
     path("data/", views.data, name="data"),
     path("data/import/preview/", views.import_preview, name="import_preview"),
     path("settings/", views.settings_page, name="settings"),

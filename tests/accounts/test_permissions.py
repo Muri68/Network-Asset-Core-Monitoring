@@ -54,9 +54,15 @@ PAGES = [
     ("ipam:circuit_new", [], "edit"),
     ("ipam:circuit_edit", ["circuit"], "edit"),
     ("ipam:calculator", [], "view"),
-    ("ui:vault", [], "vault"),
-    ("ui:credential_detail", [1], "vault"),
-    ("ui:reveal_log", [], "vault"),
+    ("vault:vault", [], "vault"),
+    ("vault:credential", ["credential"], "vault"),
+    ("vault:credential_new", [], "vault"),
+    ("vault:credential_edit", ["credential"], "vault"),
+    ("vault:credential_password", ["credential"], "vault"),
+    ("vault:reveal_log", [], "vault"),
+    ("vault:folder_new", [], "vault"),
+    ("vault:folder_edit", ["folder"], "vault"),
+    ("alerts:card", [], "view"),
     ("audit:log", [], "audit"),
     ("audit:export", [], "audit"),
     ("ui:data", [], "export"),
@@ -72,7 +78,9 @@ POST_ONLY = {
     "inventory:device_delete", "inventory:device_retire", "inventory:location_delete", "inventory:rack_delete",
     "ipam:circuit_delete", "ipam:ip_delete", "ipam:isp_delete", "ipam:prefix_delete", "monitoring:incident_ack",
     "monitoring:maintenance_delete", "monitoring:maintenance_end", "monitoring:monitor_action",
-    "monitoring:monitor_delete", "ui:credential_reveal", "ui:import_preview",
+    "monitoring:monitor_delete", "ui:import_preview", "vault:credential_reveal", "vault:credential_copied",
+    "vault:credential_delete", "vault:history_reveal", "vault:folder_delete", "alerts:settings_save",
+    "alerts:settings_test", "alerts:link", "alerts:unlink", "alerts:mute", "alerts:test",
 }
 PUBLIC = {"accounts:login", "accounts:login_password", "accounts:login_2fa_setup", "accounts:login_2fa"}
 SPECIAL = {"accounts:backup_codes", "accounts:reveal_code_setup", "accounts:user_edit"}
@@ -82,7 +90,7 @@ def test_every_url_is_covered():
     from django.urls import get_resolver
 
     names = set()
-    for ns in ("ui", "accounts", "audit", "inventory", "dcim", "ipam", "monitoring"):
+    for ns in ("ui", "accounts", "audit", "inventory", "dcim", "ipam", "monitoring", "alerts", "vault"):
         resolver = get_resolver().namespace_dict[ns][1]
         names |= {f"{ns}:{n}" for n in resolver.reverse_dict if isinstance(n, str)}
     covered = {name for name, _, _ in PAGES} | POST_ONLY | PUBLIC | SPECIAL
@@ -117,7 +125,14 @@ def objects(db):
     window = MaintenanceWindow.objects.create(name="Patch", starts_at=timezone.now(),
                                               ends_at=timezone.now() + datetime.timedelta(hours=1))
     window.devices.add(device)
-    return {"device": device.pk, "rack": device.rack.pk, "location": device.location.pk, "port": a_port.pk,
+    from apps.vault.models import Credential, CredentialFolder
+
+    folder = CredentialFolder.objects.create(name="Network core")
+    credential = Credential(folder=folder, name="Core switch — admin", username="admin", device=device)
+    credential.set_secret("S3cret!")
+    credential.save()
+    return {"folder": folder.pk, "credential": credential.pk,
+            "device": device.pk, "rack": device.rack.pk, "location": device.location.pk, "port": a_port.pk,
             "connection": connection.pk, "vlan": vlan.pk, "model": device.device_model.pk, "prefix": prefix.pk,
             "ip": ip.pk, "isp": isp.pk, "circuit": circuit.pk, "monitor": monitor.pk, "window": window.pk}
 
@@ -148,9 +163,9 @@ def test_role_access(as_user, objects, role, name, args, cap):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("role,allowed", [(roles.ADMIN, True), (roles.ENGINEER, True), (roles.VIEWER, False)])
-def test_vault_reveal_post(as_user, role, allowed):
+def test_vault_reveal_post(as_user, objects, role, allowed):
     client = as_user(make_user(role))
-    response = client.post(reverse("ui:credential_reveal", args=[1]), {"code": "000000"})
+    response = client.post(reverse("vault:credential_reveal", args=[objects["credential"]]), {"code": "000000"})
     assert response.status_code == (200 if allowed else 403)
 
 
@@ -165,7 +180,7 @@ def test_import_is_admin_only(as_user, role, allowed):
 @pytest.mark.django_db
 def test_viewer_sees_no_admin_or_vault_links(as_user, viewer):
     html = as_user(viewer).get(reverse("ui:dashboard")).content.decode()
-    for name in ("ui:vault", "audit:log", "ui:settings", "accounts:users", "ui:data", "monitoring:monitor_new"):
+    for name in ("vault:vault", "audit:log", "ui:settings", "accounts:users", "ui:data", "monitoring:monitor_new"):
         assert f'href="{reverse(name)}"' not in html, name
     assert '"kind": "Credential"' not in html  # search palette doesn't list credentials
 
@@ -173,7 +188,7 @@ def test_viewer_sees_no_admin_or_vault_links(as_user, viewer):
 @pytest.mark.django_db
 def test_engineer_nav(as_user, engineer):
     html = as_user(engineer).get(reverse("ui:dashboard")).content.decode()
-    assert f'href="{reverse("ui:vault")}"' in html
+    assert f'href="{reverse("vault:vault")}"' in html
     assert f'href="{reverse("monitoring:monitor_new")}"' in html
     for name in ("audit:log", "ui:settings", "accounts:users"):
         assert f'href="{reverse(name)}"' not in html, name

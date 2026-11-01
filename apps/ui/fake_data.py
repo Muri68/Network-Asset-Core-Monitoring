@@ -571,67 +571,6 @@ def prefix_ips(prefix):
 
 
 # --------------------------------------------------------------------------
-# Vault
-# --------------------------------------------------------------------------
-
-VAULT_FOLDERS = [
-    {"id": 1, "name": "Network core", "count": 5},
-    {"id": 2, "name": "Servers", "count": 5},
-    {"id": 3, "name": "CCTV", "count": 3},
-    {"id": 4, "name": "Access control", "count": 1},
-    {"id": 5, "name": "ISP portals", "count": 2},
-]
-
-_V = [
-    (1, 1, "FortiGate admin", "FW-CORE-01", "admin", "https", "https://10.10.0.1", 38, "Aisha Bello", ago(hours=2)),
-    (2, 1, "Core switch 01 — enable", "SW-CORE-01", "netadmin", "ssh", "10.10.0.2", 92, "Musa Ibrahim", ago(minutes=40)),
-    (3, 1, "Core switch 02 — enable", "SW-CORE-02", "netadmin", "ssh", "10.10.0.3", 92, None, None),
-    (4, 1, "Edge router", "RTR-EDGE-01", "admin", "winbox", "10.10.0.254", 140, "Musa Ibrahim", ago(days=3)),
-    (5, 1, "Server switch", "SW-SRV-01", "netadmin", "ssh", "10.10.0.4", 92, None, None),
-    (6, 2, "HV-01 iLO", "SRV-HV-01", "Administrator", "https", "https://10.10.10.105", 210, "Chinedu Okafor", ago(days=1)),
-    (7, 2, "HV-02 iLO", "SRV-HV-02", "Administrator", "https", "https://10.10.10.106", 210, None, None),
-    (8, 2, "Web 01 — root", "SRV-WEB-01", "root", "ssh", "10.10.10.11", 19, "Aisha Bello", ago(days=2)),
-    (9, 2, "Web 02 — root", "SRV-WEB-02", "root", "ssh", "10.10.10.12", 19, None, None),
-    (10, 2, "PostgreSQL superuser", "SRV-DB-01", "postgres", "other", "10.10.10.21:5432", 61, "Chinedu Okafor", ago(minutes=35)),
-    (11, 3, "NVR-01 admin", "NVR-01", "admin", "https", "https://10.20.0.10", 300, "Grace Adeyemi", ago(days=9)),
-    (12, 3, "NVR-02 admin", "NVR-02", "admin", "https", "https://10.20.0.11", 300, None, None),
-    (13, 3, "CCTV switch", "SW-CCTV-01", "admin", "https", "https://10.20.0.2", 120, None, None),
-    (14, 4, "ZKTeco panel", "ACS-01", "admin", "other", "10.30.0.10:4370", 400, "Musa Ibrahim", ago(days=30)),
-    (15, 5, "FibreLink customer portal", None, "it@acme.example", "https", "https://my.fibrelink.example", 75, None, None),
-    (16, 5, "SkyWave portal", None, "it@acme.example", "https", "https://portal.skywave.example", 75, None, None),
-]
-
-CREDENTIALS = [
-    {"id": cid, "folder_id": fid, "folder": VAULT_FOLDERS[fid - 1]["name"], "name": name,
-     "device": DEVICES_BY_NAME.get(dev), "username": user, "protocol": proto, "host": host,
-     "age_days": age, "last_by": by, "last_at": at, "fake_secret": f"Ac#{cid}x9!Qm{cid * 7}Lp",
-     "notes": "Rotate every 90 days." if age > 90 else ""}
-    for (cid, fid, name, dev, user, proto, host, age, by, at) in _V
-]
-CREDENTIALS_BY_ID = {c["id"]: c for c in CREDENTIALS}
-
-REVEAL_CODE = "123456"  # Prototype only — the reveal modal accepts this code.
-
-REVEAL_LOG = [
-    {"time": ago(minutes=35), "user": "Chinedu Okafor", "credential": CREDENTIALS_BY_ID[10], "action": "reveal",
-     "ip": "10.10.0.112"},
-    {"time": ago(minutes=40), "user": "Musa Ibrahim", "credential": CREDENTIALS_BY_ID[2], "action": "copy",
-     "ip": "10.10.0.101"},
-    {"time": ago(minutes=41), "user": "Musa Ibrahim", "credential": CREDENTIALS_BY_ID[2], "action": "reveal",
-     "ip": "10.10.0.101"},
-    {"time": ago(hours=2), "user": "Aisha Bello", "credential": CREDENTIALS_BY_ID[1], "action": "reveal",
-     "ip": "10.10.0.108"},
-    {"time": ago(days=1, hours=3), "user": "Chinedu Okafor", "credential": CREDENTIALS_BY_ID[6],
-     "action": "vault_locked", "ip": "10.10.0.112"},
-    {"time": ago(days=1, hours=3, minutes=1), "user": "Chinedu Okafor", "credential": CREDENTIALS_BY_ID[6],
-     "action": "reveal_failed", "ip": "10.10.0.112"},
-    {"time": ago(days=2), "user": "Aisha Bello", "credential": CREDENTIALS_BY_ID[8], "action": "reveal",
-     "ip": "10.10.0.108"},
-    {"time": ago(days=9), "user": "Grace Adeyemi", "credential": CREDENTIALS_BY_ID[11], "action": "reveal",
-     "ip": "10.10.0.120"},
-]
-
-# --------------------------------------------------------------------------
 # Audit
 # --------------------------------------------------------------------------
 

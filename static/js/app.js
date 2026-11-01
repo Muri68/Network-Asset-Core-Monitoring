@@ -235,6 +235,39 @@
     form.dispatchEvent(new CustomEvent("prototype-submitted", { bubbles: true }));
   });
 
+  /* ---------------- Clipboard (vault) ---------------- */
+
+  /* navigator.clipboard only exists on HTTPS / localhost; on plain http:// over the LAN fall back to execCommand. */
+  netcore.copyText = function (text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).catch(() => {});
+      return true;
+    }
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.cssText = "position:fixed;top:-1000px;opacity:0";
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) {}
+    area.remove();
+    return ok;
+  };
+
+  /* Best effort: browsers only allow it while the page has focus. */
+  netcore.clearClipboard = function () { netcore.copyText(" "); };
+
+  /* Fire-and-forget POST (survives page close), e.g. logging a copy. */
+  netcore.beacon = function (url) {
+    const token = document.querySelector('meta[name="csrf-token"]');
+    const data = new FormData();
+    if (token) data.append("csrfmiddlewaretoken", token.content);
+    if (!(navigator.sendBeacon && navigator.sendBeacon(url, data))) {
+      fetch(url, { method: "POST", body: data, credentials: "same-origin", keepalive: true });
+    }
+  };
+
   /* HTMX: send the CSRF token on every request. */
   document.addEventListener("htmx:configRequest", (e) => {
     const token = document.querySelector('meta[name="csrf-token"]');

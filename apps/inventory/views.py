@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import capability_required
+from apps.accounts.roles import can
 from apps.audit.models import AuditLog
 from apps.dcim.models import Port
 from apps.dcim.views import device_ports_context
@@ -101,6 +102,7 @@ def device_detail(request, pk):
         **device_ports_context(device),
         **device_ips(device),
         "monitors": _device_monitors(device),
+        "credentials": device.credentials.select_related("folder") if can(request.user, "vault") else [],
         "d": device,
         "attributes": device.attributes.all(),
         "children": device.children.exclude(status=Device.Status.RETIRED).select_related("device_model"),

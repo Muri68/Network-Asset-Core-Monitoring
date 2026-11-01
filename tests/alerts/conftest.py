@@ -4,9 +4,7 @@ import httpx
 import pytest
 
 from apps.alerts import telegram
-from apps.alerts.models import AlertSettings
-
-TOKEN = "123456789:" + "A" * 35
+from tests.conftest import TOKEN  # noqa: F401 — used by the alert tests
 
 
 class FakeTelegram:
@@ -53,15 +51,6 @@ def fake_tg(monkeypatch):
     fake = FakeTelegram()
     monkeypatch.setattr(telegram, "TRANSPORT", httpx.MockTransport(fake))
     return fake
-
-
-@pytest.fixture
-def bot(db):
-    s = AlertSettings.load()
-    s.bot_token = TOKEN
-    s.bot_username = "netcore_test_bot"
-    s.save()
-    return s
 
 
 def link(user, chat_id):

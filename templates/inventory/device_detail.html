@@ -52,7 +52,7 @@
     <button class="tab" :class="tab==='ports' && 'tab-active'" @click="tab='ports'">{% icon "ethernet-port" "size-4" %} Ports & connections <span class="pill pill-muted">{{ connected }}/{{ ports|length }}</span></button>
     <button class="tab" :class="tab==='ips' && 'tab-active'" @click="tab='ips'">{% icon "globe" "size-4" %} IP addresses</button>
     <button class="tab" :class="tab==='monitors' && 'tab-active'" @click="tab='monitors'">{% icon "activity" "size-4" %} Monitors</button>
-    {% if can.vault %}<button class="tab" :class="tab==='creds' && 'tab-active'" @click="tab='creds'">{% icon "key-round" "size-4" %} Credentials</button>{% endif %}
+    {% if can.vault %}<button class="tab" :class="tab==='creds' && 'tab-active'" @click="tab='creds'">{% icon "key-round" "size-4" %} Credentials{% if credentials %} <span class="pill pill-muted">{{ credentials|length }}</span>{% endif %}</button>{% endif %}
     <button class="tab" :class="tab==='history' && 'tab-active'" @click="tab='history'">{% icon "history" "size-4" %} History <span class="pill pill-muted">{{ history|length }}</span></button>
   </div>
 
@@ -170,8 +170,28 @@
     {% endif %}
   </section>
   {% if can.vault %}
-  <section x-show="tab==='creds'" x-cloak class="card">
-    {% include "components/empty_state.html" with icon="key-round" title="Vault comes later" text="Passwords linked to this device arrive with the password vault step." %}
+  <section x-show="tab==='creds'" x-cloak class="card overflow-hidden">
+    <div class="card-head"><h2 class="card-title">Credentials</h2>
+      <a href="{% url 'vault:credential_new' %}?device={{ d.pk }}" class="btn btn-primary btn-sm ml-auto">{% icon "plus" "size-3.5" %} Add credential</a></div>
+    {% if credentials %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Credential</th><th>Username</th><th class="hidden sm:table-cell">Password</th><th class="hidden md:table-cell">Age</th></tr></thead>
+        <tbody>
+          {% for c in credentials %}
+          <tr class="cursor-pointer" onclick="window.location='{{ c.get_absolute_url }}'">
+            <td><a href="{{ c.get_absolute_url }}" class="font-medium">{{ c.name }}</a><div class="text-xs text-muted">{{ c.folder }} · {{ c.get_protocol_display }}</div></td>
+            <td class="mono">{{ c.username|default:"—" }}</td>
+            <td class="hidden sm:table-cell"><span class="mono tracking-widest text-muted">••••••••</span></td>
+            <td class="hidden md:table-cell">{% if c.needs_rotation %}<span class="pill pill-warn">{{ c.age_days }}d · rotate</span>{% else %}<span class="text-xs text-muted">{{ c.age_days }} day{{ c.age_days|pluralize }}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with icon="key-round" title="No credentials" text="Store this device's logins in the vault; revealing them needs your reveal code." %}
+    {% endif %}
   </section>
   {% endif %}
 

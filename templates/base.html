@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
+  {# No page snapshots in localStorage: a revealed password must never be stored in the browser. #}
+  <meta name="htmx-config" content='{"historyCacheSize": 0}'>
   <title>{% block title %}Dashboard{% endblock %} · NetCore</title>
   <script>
     (function () {
@@ -159,7 +161,7 @@
     </main>
 
     <footer class="mx-auto max-w-[1600px] px-4 pb-8 text-[11px] text-faint sm:px-6 lg:px-8">
-      NetCore · Everything except the password vault, import/export and most settings is live (Settings → Telegram alerts is real). Those pages still show sample data and don't save anything.
+      NetCore · Everything except import/export and most settings tabs is live (Settings → Telegram alerts is real). Those pages still show sample data and don't save anything.
     </footer>
   </div>
 

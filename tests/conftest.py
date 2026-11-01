@@ -51,3 +51,18 @@ def as_user(client):
         return sign_in(client, user)
 
     return _as
+
+
+TOKEN = "123456789:" + "A" * 35  # a well-formed (fake) Telegram bot token
+
+
+@pytest.fixture
+def bot(db):
+    """Telegram alerts set up (no network: see tests/alerts/conftest.py for the fake Telegram)."""
+    from apps.alerts.models import AlertSettings
+
+    s = AlertSettings.load()
+    s.bot_token = TOKEN
+    s.bot_username = "netcore_test_bot"
+    s.save()
+    return s

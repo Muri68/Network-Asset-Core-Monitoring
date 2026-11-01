@@ -50,6 +50,22 @@ The sidebar shows "Checker running" while it's up. Set your time zone in `.env`
 
 Only outbound HTTPS to api.telegram.org is needed. Send `/status` to the bot for a quick summary.
 
+### Password vault and the encryption key
+
+Vault passwords, their notes and the bot token are encrypted with `NETCORE_ENCRYPTION_KEYS`.
+**Keep an offline copy of that key** (printed or on a USB stick in a safe), separate from database
+backups: without it the vault can't be decrypted. To change the key:
+
+```bash
+python manage.py vault_rotate_key --generate   # prints a new key
+# put it FIRST in NETCORE_ENCRYPTION_KEYS, keep the old key after it, restart both processes
+python manage.py vault_rotate_key              # re-encrypts everything with the new key
+# then remove the old key and restart again;  --check shows which keys are in use
+```
+
+Five wrong reveal codes lock that person's vault and alert the Admins on Telegram; an Admin
+unlocks it in **Users & roles**.
+
 Open http://127.0.0.1:8000 and sign in. On first sign-in you scan a QR code with an
 authenticator app (Google/Microsoft Authenticator, Authy…), save your backup codes, and
 create your vault reveal code. Add other users from **Users & roles**.
@@ -64,8 +80,6 @@ python -m pytest        # all tests
 ruff check apps config tests
 ```
 
-In the sample-data vault, the demo reveal code is still `123456`.
-
 ## Layout
 
 ```
@@ -78,7 +92,8 @@ apps/dcim/         Ports, VLANs, connections, port patterns, cable tracing
 apps/ipam/         ISPs, circuits, prefixes (subnet maths), IP addresses, NAT
 apps/monitoring/   Checkers, state machine, run_monitor process, incidents, maintenance
 apps/alerts/      Telegram client, notification outbox (down / still down / up / SSL), linking
-apps/ui/           Sample-data views (replaced area by area), template tags
+apps/vault/       Encrypted credentials, folders, password history, reveal flow, access log, key rotation
+apps/ui/           Dashboard, settings page, remaining sample-data views (import/export), template tags
 templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
 tests/             pytest suite
 assets/css/        Tailwind source (design tokens & components)

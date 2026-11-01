@@ -29,7 +29,7 @@ NAV = [
         ("calculator", "Subnet calculator", "grid-3x3", "ipam:calculator", "view"),
     ]),
     ("Security", [
-        ("vault", "Password vault", "folder-lock", "ui:vault", "vault"),
+        ("vault", "Password vault", "folder-lock", "vault:vault", "vault"),
         ("audit", "Audit log", "scroll-text", "audit:log", "audit"),
     ]),
     ("Administration", [
@@ -63,9 +63,10 @@ def _search_index(user, nav):
                "url": ip.prefix.get_absolute_url() if ip.prefix else reverse("ipam:prefixes"), "icon": "map-pin"}
               for ip in IPAddress.objects.select_related("device", "prefix")]
     if can(user, "vault"):
-        items += [{"kind": "Credential", "label": c["name"], "sub": c["username"],
-                   "url": reverse("ui:credential_detail", args=[c["id"]]), "icon": "key-round"}
-                  for c in fd.CREDENTIALS]
+        from apps.vault.models import Credential
+
+        items += [{"kind": "Credential", "label": c.name, "sub": c.username, "url": c.get_absolute_url(),
+                   "icon": "key-round"} for c in Credential.objects.only("name", "username")]
     return items
 
 

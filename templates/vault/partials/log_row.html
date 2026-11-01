@@ -1,11 +1,11 @@
 {% load humanize %}
 <li class="flex flex-wrap items-center gap-3 px-5 py-3">
-  {% include "components/avatar.html" with name=r.user size="size-7" %}
+  {% include "components/avatar.html" with name=r.user.name size="size-7" %}
   <div class="min-w-0 flex-1 text-[13px]">
-    <span class="font-medium">{{ r.user }}</span>
-    {% if r.action == "reveal" %}<span class="text-muted">revealed</span>{% elif r.action == "copy" %}<span class="text-muted">copied</span>{% elif r.action == "reveal_failed" %}<span class="text-down">entered a wrong code for</span>{% else %}<span class="text-down">was locked out on</span>{% endif %}
-    <a href="{% url 'ui:credential_detail' r.credential.id %}" class="font-medium hover:underline">{{ r.credential.name }}</a>
+    <span class="font-medium">{{ r.user.name }}</span>
+    {% if r.action == "reveal" %}<span class="text-muted">revealed</span>{% elif r.action == "copy" %}<span class="text-muted">copied</span>{% elif r.action == "history_reveal" %}<span class="text-warn">revealed an old password of</span>{% elif r.action == "reveal_failed" %}<span class="text-down">entered a wrong code for</span>{% else %}<span class="text-down">was locked out on</span>{% endif %}
+    {% if hide_credential %}this password{% elif r.credential.deleted_at %}<span class="font-medium">{{ r.credential.name }}</span> <span class="text-xs text-faint">(deleted)</span>{% else %}<a href="{{ r.credential.get_absolute_url }}" class="font-medium hover:underline">{{ r.credential.name }}</a>{% endif %}
   </div>
-  <span class="mono text-xs text-muted">{{ r.ip }}</span>
-  <span class="w-28 text-right text-xs text-faint">{{ r.time|naturaltime }}</span>
+  <span class="mono text-xs text-muted">{{ r.ip|default:"" }}</span>
+  <span class="w-28 text-right text-xs text-faint" title="{{ r.at|date:'d M Y H:i:s' }}">{{ r.at|naturaltime }}</span>
 </li>

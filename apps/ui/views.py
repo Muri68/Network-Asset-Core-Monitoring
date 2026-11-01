@@ -8,7 +8,6 @@ These views are replaced app-by-app as the phases in PLAN.md land.
 from collections import Counter
 from datetime import timedelta
 
-from django.http import Http404
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -27,17 +26,6 @@ from . import fake_data as fd
 def _page(request, template, active, **ctx):
     ctx["active"] = active
     return render(request, template, ctx)
-
-
-def _get(items, pk):
-    try:
-        return items[pk]
-    except KeyError:
-        raise Http404 from None
-
-
-def _q(request):
-    return request.GET.get("q", "").strip().lower()
 
 
 # --------------------------------------------------------------------------
@@ -121,81 +109,6 @@ def _busiest_prefixes(limit=6):
 def dashboard_live(request):
     """HTMX poll target: refreshed status counters."""
     return render(request, "partials/status_counters.html", _dashboard_counters())
-
-
-# --------------------------------------------------------------------------
-# Monitoring
-# --------------------------------------------------------------------------
-
-
-# --------------------------------------------------------------------------
-# Infrastructure
-# --------------------------------------------------------------------------
-
-
-# --------------------------------------------------------------------------
-# IPAM
-# --------------------------------------------------------------------------
-
-
-# --------------------------------------------------------------------------
-# Security
-# --------------------------------------------------------------------------
-
-
-@capability_required("vault")
-def vault(request):
-    folder = request.GET.get("folder", "")
-    q = _q(request)
-    rows = [
-        c for c in fd.CREDENTIALS
-        if (not folder or str(c["folder_id"]) == folder)
-        and (not q or q in c["name"].lower() or q in c["username"].lower() or q in c["host"].lower())
-    ]
-    return _page(request, "vault/vault.html", "vault", credentials=rows, folders=fd.VAULT_FOLDERS, folder=folder,
-                 q=q, total=len(fd.CREDENTIALS), recent=fd.REVEAL_LOG[:5])
-
-
-@capability_required("vault")
-def credential_detail(request, pk):
-    c = _get(fd.CREDENTIALS_BY_ID, pk)
-    return _page(request, "vault/credential_detail.html", "vault", c=c,
-                 log=[r for r in fd.REVEAL_LOG if r["credential"]["id"] == c["id"]],
-                 history=[{"changed": timezone.now() - timedelta(days=c["age_days"]), "by": "Musa Ibrahim"},
-                          {"changed": timezone.now() - timedelta(days=c["age_days"] + 92), "by": "Aisha Bello"}])
-
-
-MAX_REVEAL_ATTEMPTS = 5
-
-
-@capability_required("vault")
-@require_POST
-def credential_reveal(request, pk):
-    """Prototype reveal flow: accepts fd.REVEAL_CODE, counts failures in a cookie."""
-    c = _get(fd.CREDENTIALS_BY_ID, pk)
-    failures = int(request.COOKIES.get("reveal_failures", "0"))
-    if failures >= MAX_REVEAL_ATTEMPTS:
-        response = render(request, "vault/partials/reveal_locked.html")
-    elif request.POST.get("code") == fd.REVEAL_CODE:
-        response = render(request, "vault/partials/reveal_secret.html", {"c": c})
-        response.delete_cookie("reveal_failures")
-    else:
-        failures += 1
-        template = "vault/partials/reveal_locked.html" if failures >= MAX_REVEAL_ATTEMPTS else \
-            "vault/partials/reveal_form.html"
-        response = render(request, template, {"c": c, "error": True,
-                                              "remaining": MAX_REVEAL_ATTEMPTS - failures})
-        response.set_cookie("reveal_failures", str(failures), max_age=600, samesite="Strict", httponly=True)
-    response["Cache-Control"] = "no-store"
-    return response
-
-
-@capability_required("vault")
-def reveal_log(request):
-    log = fd.REVEAL_LOG
-    if not can(request.user, "vault_logs_all"):
-        log = [r for r in log if r["user"] == request.user.name]
-    return _page(request, "vault/reveal_log.html", "vault", log=log, all_users=can(request.user, "vault_logs_all"))
 
 
 # --------------------------------------------------------------------------

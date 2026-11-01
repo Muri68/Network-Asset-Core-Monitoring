@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.ipam",
     "apps.monitoring",
     "apps.alerts",
+    "apps.vault",
     "apps.ui",
 ]
 

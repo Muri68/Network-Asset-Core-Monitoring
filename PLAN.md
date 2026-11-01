@@ -372,7 +372,12 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - Per-user mute, test-alert button, vault-lockout alert to Admins
 - **Done when:** a real phone receives DOWN → reminder → UP messages for a test monitor, and no alert is sent during a maintenance window.
 
-### Phase 7 — Password vault
+### Phase 7 — Password vault ✅ (owner approved 2026-11-01)
+- Done: `apps/vault` — CredentialFolder, Credential (password + notes encrypted, `key_id` of the key used, soft delete), CredentialHistory (old passwords, revealable by Admins), RevealLog (append-only via database triggers, like the audit log). Encryption is `apps/core/crypto.py` (MultiFernet) with keys from `NETCORE_ENCRYPTION_KEYS` — the same keys as the bot token, instead of a separate `VAULT_KEYS`. Folders are flat (no parent folder) in v1.
+- Reveal (§7.3): the password and notes are never in a page until the reveal code is accepted; the answer is `no-store`; hiding (button or 30 s) removes the password from the page entirely, closing the dialog too; HTMX page snapshots are switched off. Wrong code → "n attempts left"; the 5th locks the vault, logs it and sends a Telegram notice to the Admins (`notify_admins`); Admins unlock in Users & roles. Copy works on plain http:// LAN pages too (fallback), is logged via a beacon, only right after a reveal, and the clipboard is cleared after 30 s where the browser allows.
+- Pages: vault list (folders, search, age with "rotate" after 90 days, last revealed), credential page (who accessed it, previous passwords), add / edit (notes never pre-filled) / change password (with generator) / delete (Admins, soft — the access log stays), folders (create, rename, delete when empty), access log (filters, 7-day figures, CSV for Admins; Engineers see their own), device Credentials tab, global search. All changes audited with secrets masked.
+- `manage.py vault_rotate_key` (`--generate`, `--check`): re-encrypts passwords, notes, history and the bot token with the newest key in one transaction; refuses and changes nothing if any value can't be decrypted.
+- Checks: 620 pytest tests (28 new vault tests plus every vault page in the role-permission matrix, including only ciphertext in the database, lockout at 5, rotation end-to-end), ruff clean, browser run (headless Chrome): wrong code → 4 left, right code → password + notes, copy logged, hide / auto-hide / Escape leave no password in the page, old password reveal, no JS errors.
 - Crypto module (MultiFernet, key versions), key-rotation command
 - Folders, credentials (linked to devices), history
 - Reveal/copy flow with reveal code, auto-hide, lockout, RevealLog views

@@ -3,17 +3,40 @@
 {% block crumb %}Security / Password vault{% endblock %}
 {% block heading %}Access log{% endblock %}
 {% block page_title %}Vault access log{% endblock %}
-{% block page_subtitle %}Every reveal, copy, wrong code and lockout. This log can't be edited or deleted.{% endblock %}
-{% block page_actions %}{% if can.export %}<a href="{% url 'ui:data' %}" class="btn">{% icon "download" %} Export</a>{% endif %}{% endblock %}
+{% block page_subtitle %}{% if all_users %}Every reveal, copy, wrong code and lockout by everyone.{% else %}Your own reveals, copies and wrong codes (Admins see everyone's).{% endif %} This log can't be edited or deleted.{% endblock %}
+{% block page_actions %}{% if all_users %}<a href="?{% if query %}{{ query }}&{% endif %}format=csv" class="btn">{% icon "download" %} Export CSV</a>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-  <div class="card p-4"><div class="text-xs text-muted">Reveals (7 days)</div><div class="stat-num mt-3">14</div></div>
-  <div class="card p-4"><div class="text-xs text-muted">Copies (7 days)</div><div class="stat-num mt-3">9</div></div>
-  <div class="card p-4"><div class="text-xs text-muted">Wrong codes</div><div class="stat-num mt-3 text-down">5</div></div>
-  <div class="card p-4"><div class="text-xs text-muted">Locked users</div><div class="stat-num mt-3 text-down">1</div></div>
+  <div class="card p-4"><div class="text-xs text-muted">Reveals (7 days)</div><div class="stat-num mt-3">{{ stats.reveals }}</div></div>
+  <div class="card p-4"><div class="text-xs text-muted">Copies (7 days)</div><div class="stat-num mt-3">{{ stats.copies }}</div></div>
+  <div class="card p-4"><div class="text-xs text-muted">Wrong codes (7 days)</div><div class="stat-num mt-3 {% if stats.failures %}text-down{% endif %}">{{ stats.failures }}</div></div>
+  {% if stats.locked is not None %}<div class="card p-4"><div class="text-xs text-muted">Locked vaults now</div><div class="stat-num mt-3 {% if stats.locked %}text-down{% endif %}">{{ stats.locked }}</div>{% if stats.locked %}<a href="{% url 'accounts:users' %}" class="link-more mt-1">Unlock in Users {% icon "arrow-up-right" "size-3" %}</a>{% endif %}</div>{% endif %}
 </div>
 <section class="card overflow-hidden">
-  <ul class="divide-y divide-line">{% for r in log %}{% include "vault/partials/log_row.html" %}{% endfor %}</ul>
+  <form method="get" class="flex flex-wrap items-center gap-2 border-b border-line p-3">
+    {% if request.GET.credential %}<input type="hidden" name="credential" value="{{ request.GET.credential }}">{% endif %}
+    <div class="w-44">{{ form.action }}</div>
+    {% if form.user %}<div class="w-44">{{ form.user }}</div>{% endif %}
+    <div class="w-40">{{ form.days }}</div>
+    <button class="btn">{% icon "filter" %} Filter</button>
+    {% if request.GET %}<a href="{% url 'vault:reveal_log' %}" class="btn btn-ghost">Clear</a>{% endif %}
+    <span class="ml-auto text-xs text-muted">{{ page.paginator.count }} event{{ page.paginator.count|pluralize }}</span>
+  </form>
+  {% if page.object_list %}
+  <ul class="divide-y divide-line">{% for r in page.object_list %}{% include "vault/partials/log_row.html" %}{% endfor %}</ul>
+  {% else %}
+  {% include "components/empty_state.html" with icon="eye-off" title="Nothing in this period" text="No reveals, copies or wrong codes match these filters." %}
+  {% endif %}
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex items-center justify-between border-t border-line px-5 py-3 text-xs text-muted">
+    <span>Showing {{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }}</span>
+    <div class="flex gap-1">
+      {% if page.has_previous %}<a class="btn btn-sm" href="?{% if query %}{{ query }}&{% endif %}page={{ page.previous_page_number }}">{% icon "chevron-left" "size-3.5" %}</a>{% endif %}
+      <span class="btn btn-sm pointer-events-none">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?{% if query %}{{ query }}&{% endif %}page={{ page.next_page_number }}">{% icon "chevron-right" "size-3.5" %}</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
 </section>
 {% endblock %}
