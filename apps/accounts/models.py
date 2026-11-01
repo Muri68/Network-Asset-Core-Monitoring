@@ -56,6 +56,11 @@ class Profile(models.Model):
     reveal_failed_attempts = models.PositiveSmallIntegerField(default=0)
     vault_locked_at = models.DateTimeField(null=True, blank=True)
     telegram_chat_id = models.CharField(max_length=32, unique=True, null=True, blank=True)
+    telegram_name = models.CharField(max_length=150, blank=True, help_text="Telegram name shown on the profile.")
+    telegram_linked_at = models.DateTimeField(null=True, blank=True)
+    # One-time link token from "Link Telegram" (only its SHA-256 is stored) and when it stops working.
+    telegram_link_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    telegram_link_expires = models.DateTimeField(null=True, blank=True)
     alerts_muted = models.BooleanField(default=False)
 
     def __str__(self):
@@ -68,6 +73,10 @@ class Profile(models.Model):
     @property
     def vault_locked(self):
         return self.vault_locked_at is not None
+
+    @property
+    def telegram_linked(self):
+        return bool(self.telegram_chat_id)
 
 
 @receiver(post_save, sender=User)

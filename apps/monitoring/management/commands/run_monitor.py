@@ -4,11 +4,12 @@ import signal
 
 from django.core.management.base import BaseCommand
 
+from apps.alerts import worker
 from apps.monitoring.engine import run_forever
 
 
 class Command(BaseCommand):
-    help = "Run the monitoring checks continuously (keep this running alongside the web server)."
+    help = "Run the monitoring checks and Telegram alerts continuously (keep this running alongside the web server)."
 
     def handle(self, *args, **opts):
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -20,6 +21,6 @@ class Command(BaseCommand):
             loop = asyncio.get_running_loop()
             for sig in (signal.SIGINT, signal.SIGTERM):
                 loop.add_signal_handler(sig, stop.set)
-            await run_forever(stop)
+            await asyncio.gather(run_forever(stop), worker.run(stop))
 
         asyncio.run(main())

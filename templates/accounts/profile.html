@@ -68,12 +68,6 @@
     </div>
   </section>
 
-  <section class="card">
-    <div class="card-head"><h2 class="card-title">Telegram alerts</h2><span class="pill pill-muted">Coming soon</span></div>
-    <div class="card-body text-[13px] text-muted">
-      <div class="flex items-start gap-3"><span class="icon-chip text-info">{% icon "send" "size-4" %}</span>
-        <p>Linking your Telegram account for down / up alerts arrives with the alerts step (PLAN.md Phase 6).</p></div>
-    </div>
-  </section>
+  {% include "accounts/partials/telegram_card.html" %}
 </div>
 {% endblock %}

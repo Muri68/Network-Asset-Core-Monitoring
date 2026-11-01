@@ -221,5 +221,14 @@ def import_preview(request):
 
 
 @capability_required("settings")
-def settings_page(request):
-    return _page(request, "system/settings.html", "settings", users=fd.USERS)
+def settings_page(request, alert_form=None, tab=None, status=200):
+    """Telegram alerts tab is real (apps/alerts); the other tabs are still the prototype."""
+    from apps.alerts.views import settings_context
+
+    tab = tab or request.GET.get("tab", "general")
+    ctx = {"active": "settings", "users": fd.USERS, "tab": tab if tab in SETTINGS_TABS else "general",
+           **settings_context(alert_form)}
+    return render(request, "system/settings.html", ctx, status=status)
+
+
+SETTINGS_TABS = ["general", "alerts", "monitoring", "security", "backups"]

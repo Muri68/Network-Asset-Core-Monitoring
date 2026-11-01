@@ -6,7 +6,7 @@
 {% block page_subtitle %}System-wide configuration. Every change is recorded in the audit log.{% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 gap-4 lg:grid-cols-12" x-data="{ tab: 'general' }">
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-12" x-data="{ tab: '{{ tab }}' }">
   <nav class="card self-start p-2 lg:col-span-3">
     <button class="nav-link w-full" :class="tab==='general' && 'nav-link-active'" @click="tab='general'">{% icon "sliders-horizontal" %} General</button>
     <button class="nav-link w-full" :class="tab==='alerts' && 'nav-link-active'" @click="tab='alerts'">{% icon "send" %} Telegram alerts</button>
@@ -27,25 +27,72 @@
       <div class="flex justify-end border-t border-line px-5 py-4"><button class="btn btn-primary">Save changes</button></div>
     </form>
 
-    <form data-prototype="Alert settings saved" x-show="tab==='alerts'" x-cloak class="card">
-      <div class="card-head border-b border-line pb-4"><h2 class="card-title">Telegram alerts</h2><span class="pill pill-up"><span class="dot dot-up"></span>Bot connected</span></div>
-      <div class="grid gap-4 p-5 sm:grid-cols-2">
-        <div class="sm:col-span-2"><label class="field-label">Bot token</label>
-          <div class="flex gap-2"><input class="input mono" value="••••••••••:••••••••••••••••••••••••" disabled><button type="button" class="btn">Replace</button></div>
-          <p class="hint">Created with @BotFather. Stored encrypted. Bot: <span class="mono text-ink-2">@acme_netcore_bot</span></p></div>
-        <div><label class="field-label">Reminder while down</label><select class="input"><option>Every 30 minutes</option><option selected>Every 60 minutes</option><option>Every 4 hours</option><option>Never</option></select></div>
-        <div><label class="field-label">Recipients</label><select class="input"><option>Admins + Engineers with linked Telegram</option><option>Admins only</option></select></div>
-        <div class="sm:col-span-2 grid gap-3 text-[13px]">
-          <label class="flex items-center justify-between gap-3"><span>Send recovery ("back up") alerts</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
-          <label class="flex items-center justify-between gap-3"><span>Group child devices under the parent alert</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
-          <label class="flex items-center justify-between gap-3"><span>Notify Admins when a user's vault is locked</span><input type="checkbox" checked class="size-4 accent-[var(--accent)]"></label>
+    <div x-show="tab==='alerts'" x-cloak class="space-y-4">
+      <form method="post" action="{% url 'alerts:settings_save' %}" class="card" novalidate>
+        {% csrf_token %}
+        <div class="card-head border-b border-line pb-4"><h2 class="card-title">Telegram alerts</h2>
+          {% if alert_settings.active %}<span class="pill pill-up"><span class="dot dot-up"></span>Bot connected</span>
+          {% elif alert_settings.configured %}<span class="pill pill-warn">Alerts switched off</span>
+          {% else %}<span class="pill pill-muted">Not set up</span>{% endif %}</div>
+        <div class="grid gap-4 p-5 sm:grid-cols-2">
+          <div class="sm:col-span-2">{% include "components/form_errors.html" with form=alert_form %}</div>
+          {% if not alert_settings.configured %}
+          <ol class="list-decimal space-y-1 rounded-xl border border-line bg-surface-2 p-4 pl-8 text-[13px] text-ink-2 sm:col-span-2">
+            <li>In Telegram, open <span class="mono">@BotFather</span> and send <span class="mono">/newbot</span>.</li>
+            <li>Choose a name (e.g. <i>NetCore Alerts</i>) and a username ending in <span class="mono">bot</span>.</li>
+            <li>BotFather replies with a token like <span class="mono">1234567890:AAH…</span>; paste it below and save.</li>
+            <li>Each Admin and Engineer then links their own Telegram on their <a class="text-accent hover:underline" href="{% url 'accounts:profile' %}#telegram">profile page</a>.</li>
+          </ol>
+          {% endif %}
+          <div class="sm:col-span-2">
+            {% include "components/field.html" with field=alert_form.bot_token hide_required=True %}
+            {% if alert_settings.configured %}<p class="hint">Current: <span class="mono text-ink-2">{{ alert_settings.token_hint }}</span> · bot <a class="mono text-accent hover:underline" href="https://t.me/{{ alert_settings.bot_username }}" target="_blank" rel="noopener">@{{ alert_settings.bot_username }}</a>. Stored encrypted. Changing to a different bot unlinks everyone.</p>{% endif %}
+          </div>
+          {% include "components/field.html" with field=alert_form.reminder_minutes %}
+          <div><div class="field-label">Recipients</div>
+            <p class="text-[13px] text-ink-2">Admins and Engineers who linked Telegram and haven't muted alerts:
+              {% for u in linked_recipients %}<b>{{ u.name }}</b>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-warn">nobody yet</span>{% endfor %}.</p></div>
+          <div class="grid gap-3 text-[13px] sm:col-span-2">
+            <label class="flex items-center justify-between gap-3"><span>Send Telegram alerts <span class="text-muted">(untick to pause all alerts)</span></span>{{ alert_form.enabled }}</label>
+            <label class="flex items-center justify-between gap-3"><span>Daily warning while an SSL certificate is close to expiry</span>{{ alert_form.ssl_warnings }}</label>
+          </div>
+          <ul class="space-y-1 rounded-xl border border-line bg-surface-2 p-3.5 text-xs text-muted sm:col-span-2">
+            <li>{% icon "info" "size-3.5 mr-1 inline" %} Down alerts go out after the monitor's failed-check limit (3 by default); a recovery ("back up") message follows.</li>
+            <li>{% icon "network" "size-3.5 mr-1 inline" %} Devices behind a down parent show <i>unreachable</i> and are covered by the parent's alert.</li>
+            <li>{% icon "wrench" "size-3.5 mr-1 inline" %} Nothing is sent during maintenance windows. Reminders stop once someone acknowledges the incident.</li>
+            <li>{% icon "lock" "size-3.5 mr-1 inline" %} Only <b>outbound</b> HTTPS to api.telegram.org is needed. If the internet is down, alerts wait and are sent later, marked <i>delayed</i>.</li>
+          </ul>
         </div>
-        <div class="rounded-xl border border-line bg-surface-2 p-3.5 text-xs text-muted sm:col-span-2">
-          {% icon "info" "size-3.5 mr-1 inline" %} The server only needs <b>outbound</b> HTTPS to api.telegram.org. Nothing is exposed to the internet.
+        <div class="flex flex-wrap justify-between gap-2 border-t border-line px-5 py-4">
+          <button class="btn" formaction="{% url 'alerts:settings_test' %}" {% if not alert_settings.configured %}disabled{% endif %}>{% icon "send" %} Send me a test alert</button>
+          <button class="btn btn-primary">Save changes</button>
         </div>
-      </div>
-      <div class="flex justify-between border-t border-line px-5 py-4"><button type="button" class="btn" @click="$store.toast.show('Test alert sent — prototype only')">{% icon "send" %} Send test alert</button><button class="btn btn-primary">Save changes</button></div>
-    </form>
+      </form>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Recent alerts</h2>
+          <div class="flex gap-2">{% if alert_counts.pending %}<span class="pill pill-warn">{{ alert_counts.pending }} waiting</span>{% endif %}{% if alert_counts.failed %}<span class="pill pill-down">{{ alert_counts.failed }} failed</span>{% endif %}</div></div>
+        {% if recent_alerts %}
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>When</th><th>Alert</th><th>To</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for n in recent_alerts %}
+              <tr>
+                <td class="whitespace-nowrap text-muted">{{ n.created_at|date:"d M H:i" }}</td>
+                <td>{{ n.get_event_display }}{% if n.monitor %} · <a class="text-accent hover:underline" href="{{ n.monitor.get_absolute_url }}">{{ n.monitor.name }}</a>{% endif %}</td>
+                <td>{{ n.user.name }}</td>
+                <td><span class="pill pill-{{ n.tone }}">{{ n.get_status_display }}</span>{% if n.error %}<div class="mt-1 max-w-xs text-xs text-muted">{{ n.error }}</div>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="card-body text-[13px] text-muted">No alerts yet.</p>
+        {% endif %}
+      </section>
+    </div>
 
     <form data-prototype="Monitoring defaults saved" x-show="tab==='monitoring'" x-cloak class="card">
       <div class="card-head border-b border-line pb-4"><h2 class="card-title">Monitoring defaults</h2></div>

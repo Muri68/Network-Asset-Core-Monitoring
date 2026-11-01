@@ -1,0 +1,59 @@
+{# Profile → Telegram. While waiting for "Start" in Telegram it refreshes itself every 3 s. #}
+<section class="card" id="telegram"
+         {% if tg_link %}hx-get="{% url 'alerts:card' %}" hx-trigger="every 3s" hx-swap="outerHTML" hx-headers='{"X-Background": "1"}'{% endif %}>
+  <div class="card-head"><h2 class="card-title">Telegram alerts</h2>
+    {% if me.profile.telegram_linked %}
+      {% if me.profile.alerts_muted %}<span class="pill pill-warn">{% icon "bell-off" "size-3" %} Muted</span>
+      {% else %}<span class="pill pill-up">{% icon "circle-check" "size-3" %} Linked</span>{% endif %}
+    {% elif tg_link %}<span class="pill pill-warn">Waiting for Telegram…</span>
+    {% else %}<span class="pill pill-muted">Not linked</span>{% endif %}
+  </div>
+  <div class="card-body space-y-4 text-[13px]">
+    {% if not tg_settings.configured %}
+      <div class="flex items-start gap-3"><span class="icon-chip text-info">{% icon "send" "size-4" %}</span>
+        <p class="text-muted">Telegram alerts aren't set up yet. An Admin adds the bot in <b>Settings → Telegram alerts</b>, then you can link your account here.</p></div>
+
+    {% elif me.profile.telegram_linked %}
+      <div class="inset flex items-center gap-3 p-3.5"><span class="icon-chip">{% icon "send" "size-4" %}</span>
+        <div class="flex-1"><div class="font-medium">{{ me.profile.telegram_name|default:"Telegram account" }}</div>
+          <div class="text-xs text-muted">Linked {{ me.profile.telegram_linked_at|date:"d M Y, H:i" }} · bot @{{ tg_settings.bot_username }}</div></div></div>
+      {% if me.role == "Viewer" %}<p class="text-muted">Monitoring alerts go to Admins and Engineers; as a Viewer you won't receive them.</p>
+      {% elif me.profile.alerts_muted %}<p class="text-warn">You won't receive alerts while muted. Others still do.</p>
+      {% else %}<p class="text-muted">You get down, still-down and back-up alerts, plus SSL expiry warnings. Send <span class="mono">/status</span> to the bot for a summary any time.</p>{% endif %}
+      <div class="flex flex-wrap gap-2">
+        <form method="post" action="{% url 'alerts:test' %}">{% csrf_token %}<button class="btn">{% icon "send" %} Send test alert</button></form>
+        <form method="post" action="{% url 'alerts:mute' %}">{% csrf_token %}<button class="btn">{% if me.profile.alerts_muted %}{% icon "bell" %} Unmute alerts{% else %}{% icon "bell-off" %} Mute alerts{% endif %}</button></form>
+        <form method="post" action="{% url 'alerts:unlink' %}" onsubmit="return confirm('Unlink Telegram? You will stop getting alerts.')">{% csrf_token %}<button class="btn btn-ghost text-down">Unlink</button></form>
+      </div>
+      {% if tg_recent %}
+      <div><div class="field-label">Your recent alerts</div>
+        <ul class="divide-y divide-line rounded-xl border border-line">
+          {% for n in tg_recent %}
+          <li class="flex items-center justify-between gap-3 px-3 py-2">
+            <span>{{ n.get_event_display }}{% if n.monitor %} · {{ n.monitor.name }}{% endif %} <span class="text-xs text-muted">{{ n.created_at|date:"d M H:i" }}</span></span>
+            <span class="pill pill-{{ n.tone }}" {% if n.error %}title="{{ n.error }}"{% endif %}>{{ n.get_status_display }}</span>
+          </li>
+          {% endfor %}
+        </ul></div>
+      {% endif %}
+
+    {% elif tg_link %}
+      <ol class="list-decimal space-y-1 pl-5 text-ink-2">
+        <li>Open the link below on the phone or computer where you use Telegram.</li>
+        <li>Telegram opens a chat with <b>@{{ tg_settings.bot_username }}</b>: press <b>Start</b>.</li>
+        <li>This card updates by itself once you're linked.</li>
+      </ol>
+      <a href="{{ tg_link }}" target="_blank" rel="noopener" class="btn btn-primary">{% icon "external-link" %} Open Telegram</a>
+      <p class="hint">The link works once and expires at {{ tg_expires|time:"H:i" }}. Don't share it — whoever opens it gets your alerts.</p>
+      {% if not tg_checker_alive %}<p class="field-error">The checker (<span class="mono">manage.py run_monitor</span>) isn't running, so the link can't complete until it starts.</p>{% endif %}
+
+    {% else %}
+      <div class="flex items-start gap-3"><span class="icon-chip text-info">{% icon "send" "size-4" %}</span>
+        <p class="text-muted">Get a message on Telegram when a device or website goes down, and again when it's back up.
+          {% if me.role == "Viewer" %}Monitoring alerts go to Admins and Engineers.{% endif %}</p></div>
+      {% if me.role != "Viewer" %}
+      <form method="post" action="{% url 'alerts:link' %}">{% csrf_token %}<button class="btn btn-primary">{% icon "link" %} Link Telegram</button></form>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>

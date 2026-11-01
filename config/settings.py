@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.dcim",
     "apps.ipam",
     "apps.monitoring",
+    "apps.alerts",
     "apps.ui",
 ]
 
@@ -147,6 +148,9 @@ AXES_COOLOFF_TIME = timedelta(minutes=30)
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_TEMPLATE = "auth/locked.html"
 AXES_ENABLE_ADMIN = False
+
+# Keys for secrets stored in the database (apps/core/crypto.py): comma-separated, newest first.
+ENCRYPTION_KEYS = [k.strip() for k in os.environ.get("NETCORE_ENCRYPTION_KEYS", "").split(",") if k.strip()]
 
 # --------------------------------------------------------------------------
 # Locale, static files

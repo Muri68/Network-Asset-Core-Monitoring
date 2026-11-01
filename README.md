@@ -23,13 +23,14 @@ you'd delete afterwards.
 uv venv --python 3.13 .venv                 # or: python3.13 -m venv .venv
 source .venv/bin/activate
 uv pip install -r requirements-dev.txt      # or: pip install -r requirements-dev.txt
-cp .env.example .env                        # then edit DJANGO_SECRET_KEY
+cp .env.example .env                        # then set DJANGO_SECRET_KEY and NETCORE_ENCRYPTION_KEYS
 python manage.py migrate
 python manage.py bootstrap_admin --username yourname --full-name "Your Name" --email you@example.com
 python manage.py tailwind runserver         # builds CSS on change + starts Django
 ```
 
-In a **second terminal**, start the checker that pings devices and checks websites:
+In a **second terminal**, start the checker that pings devices, checks websites and sends
+Telegram alerts:
 
 ```bash
 source .venv/bin/activate
@@ -38,6 +39,16 @@ python manage.py run_monitor                # keep it running; Ctrl+C to stop
 
 The sidebar shows "Checker running" while it's up. Set your time zone in `.env`
 (`DJANGO_TIME_ZONE=Africa/Lagos`) so times and maintenance windows match your clock.
+
+### Telegram alerts
+
+1. In Telegram, open **@BotFather**, send `/newbot`, pick a name and a username ending in `bot`.
+2. Copy the token it gives you into **Settings → Telegram alerts** and save (it's checked with
+   Telegram and stored encrypted with `NETCORE_ENCRYPTION_KEYS` — keep an offline copy of that key).
+3. Each Admin and Engineer opens **My profile → Link Telegram → Open Telegram** and presses **Start**.
+   `run_monitor` must be running: it receives the Start message and sends every alert.
+
+Only outbound HTTPS to api.telegram.org is needed. Send `/status` to the bot for a quick summary.
 
 Open http://127.0.0.1:8000 and sign in. On first sign-in you scan a QR code with an
 authenticator app (Google/Microsoft Authenticator, Authy…), save your backup codes, and
@@ -61,11 +72,12 @@ In the sample-data vault, the demo reveal code is still `123456`.
 config/            Django settings & URLs
 apps/accounts/     Users, roles, sign-in flow, 2FA, profile, user management
 apps/audit/        Append-only audit log: log_event(), track(Model), viewer and CSV export
-apps/core/         Shared base model (created/updated by) and form styling
+apps/core/         Shared base model (created/updated by), form styling, encryption of stored secrets
 apps/inventory/    Locations, racks, devices, device models, rack elevations
 apps/dcim/         Ports, VLANs, connections, port patterns, cable tracing
 apps/ipam/         ISPs, circuits, prefixes (subnet maths), IP addresses, NAT
 apps/monitoring/   Checkers, state machine, run_monitor process, incidents, maintenance
+apps/alerts/      Telegram client, notification outbox (down / still down / up / SSL), linking
 apps/ui/           Sample-data views (replaced area by area), template tags
 templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
 tests/             pytest suite

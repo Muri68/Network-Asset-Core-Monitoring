@@ -187,6 +187,9 @@ def _profile_context(request, **forms):
         "backup_left": services.backup_codes_left(user),
         "active": "profile",
     }
+    from apps.alerts.views import profile_context as telegram_context
+
+    ctx.update(telegram_context(request))
     ctx.update(forms)
     return ctx
 

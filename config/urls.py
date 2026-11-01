@@ -7,5 +7,6 @@ urlpatterns = [
     path("", include("apps.dcim.urls")),
     path("", include("apps.ipam.urls")),
     path("", include("apps.monitoring.urls")),
+    path("", include("apps.alerts.urls")),
     path("", include("apps.ui.urls")),
 ]

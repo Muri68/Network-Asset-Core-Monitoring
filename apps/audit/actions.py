@@ -34,6 +34,12 @@ ACTIONS = {
     "settings_change": ("Settings changed", "info"),
     "maintenance_start": ("Maintenance started", "maint"),
     "incident_ack": ("Incident acknowledged", "info"),
+    # Telegram alerts
+    "telegram_link": ("Telegram linked", "up"),
+    "telegram_unlink": ("Telegram unlinked", "warn"),
+    "alerts_mute": ("Alerts muted", "warn"),
+    "alerts_unmute": ("Alerts unmuted", "info"),
+    "alert_test": ("Test alert sent", "muted"),
 }
 
 CHOICES = [(key, label) for key, (label, _tone) in ACTIONS.items()]

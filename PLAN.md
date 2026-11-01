@@ -359,7 +359,14 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - Dashboard; nightly rollups & retention
 - **Done when:** unplugging a test device produces DOWN after 3 checks, its children show UNREACHABLE, and recovery closes the incident — all covered by automated tests with fake targets.
 
-### Phase 6 — Telegram alerts
+### Phase 6 — Telegram alerts ✅ (owner approved 2026-11-01)
+- Done: `apps/alerts` — AlertSettings (bot token encrypted with `apps/core/crypto.py`, MultiFernet keys from `NETCORE_ENCRYPTION_KEYS`; Phase 7's vault reuses it), Notification outbox with a unique `dedupe_key` (instead of the unique tuple in §6.6 — same guarantee, also covers SSL and test alerts).
+- **Design note:** alerts are queued by a *sweep* in `run_monitor` every 2 s that compares incidents with alerts already queued, rather than by the `status_changed` signal: a signal only fires in the process that made the change (pause happens in the web app), a sweep can't miss anything and never duplicates.
+- Rules: DOWN to active Admins + Engineers with Telegram linked and not muted; STILL DOWN every reminder period (30/60/120/240 min or never) until **acknowledged**; UP (or PAUSED) only to those who got the DOWN, and only after the DOWN was delivered; unsent alerts of children that become UNREACHABLE are cancelled; nothing during maintenance, the UP waits until the window ends; SSL warning once a day from 08:00 while within the monitor's warning days; `notify_admins()` ready for the vault lock-out (Phase 7).
+- Delivery: own asyncio tasks in `run_monitor` (Telegram trouble never delays checks); back-off 30 s → 30 min per alert, whole-loop back-off up to 5 min while Telegram is unreachable; given up after 24 h; sent late → "⏳ Delayed — originally at 14:02"; blocked bot / unknown chat fail at once.
+- Linking: Profile → Link Telegram → one-time deep link (only its hash stored, valid 15 min) → long-polling picks up `/start <token>`; `/status` gives linked users a summary; group chats ignored. Changing to a different bot unlinks everyone.
+- Pages: Settings → Telegram alerts (setup steps, token check via getMe, test alert, recent alerts with status/errors); Profile Telegram card (link, waiting state that refreshes itself, mute, test, unlink, your recent alerts). All changes audited; the token never appears in the audit log, page or errors.
+- Checks: 568 pytest tests (60 new, against a fake Telegram), ruff clean, real api.telegram.org reached (bad token → clear error), `run_monitor` starts and stops cleanly with the alert worker.
 - Bot settings, user linking via deep link, long-poll updates task
 - Notification outbox, retries/back-off, delayed-delivery marking, reminders, recovery messages, SSL-expiry warnings
 - Per-user mute, test-alert button, vault-lockout alert to Admins
