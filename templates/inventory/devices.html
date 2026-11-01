@@ -6,6 +6,7 @@
 {% block page_title %}Device inventory{% endblock %}
 {% block page_subtitle %}{{ total }} device{{ total|pluralize }} — servers, switches, firewalls, access control, NVRs, cameras and more.{% endblock %}
 {% block page_actions %}
+  {% include "components/export_menu.html" with resource="devices" %}
   {% if can.edit %}<a href="{% url 'inventory:device_new' %}" class="btn btn-primary">{% icon "plus" %} Add device</a>{% endif %}
 {% endblock %}
 

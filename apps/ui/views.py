@@ -10,7 +10,6 @@ from datetime import timedelta
 
 from django.shortcuts import render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
 
 from apps.accounts.decorators import capability_required
 from apps.accounts.roles import can
@@ -114,23 +113,6 @@ def dashboard_live(request):
 # --------------------------------------------------------------------------
 # Administration
 # --------------------------------------------------------------------------
-
-
-@capability_required("export")
-def data(request):
-    return _page(request, "system/data.html", "data", resources=fd.IMPORT_RESOURCES)
-
-
-@capability_required("import")
-@require_POST
-def import_preview(request):
-    rows = fd.IMPORT_PREVIEW
-    return render(request, "system/partials/import_preview.html", {
-        "rows": rows, "resource": request.POST.get("resource", "devices"),
-        "creates": sum(1 for r in rows if r["action"] == "create"),
-        "updates": sum(1 for r in rows if r["action"] == "update"),
-        "errors": sum(1 for r in rows if r["action"] == "error"),
-    })
 
 
 @capability_required("settings")

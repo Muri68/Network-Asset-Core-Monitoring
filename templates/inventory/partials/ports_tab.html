@@ -3,6 +3,7 @@
   <section class="card mb-4">
     <div class="card-head">
       <h2 class="card-title">Front panel</h2>
+      <div class="ml-auto">{% include "components/export_menu.html" with resource="ports" query=port_query label="Export port map" %}</div>
       <div class="flex flex-wrap items-center gap-3 text-[11px] text-muted">
         <span class="flex items-center gap-1.5"><span class="port port-up h-3 w-3"></span>Connected</span>
         <span class="flex items-center gap-1.5"><span class="port port-empty h-3 w-3"></span>Free</span>

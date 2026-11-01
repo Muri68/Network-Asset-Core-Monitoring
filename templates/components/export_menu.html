@@ -1,0 +1,10 @@
+{# Export button: {% include "components/export_menu.html" with resource="devices" query="rack=3" label="Export rack" %} #}
+{% if can.export %}
+<div class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
+  <button type="button" class="btn" @click="open = !open" :aria-expanded="open">{% icon "download" %} {{ label|default:"Export" }}</button>
+  <div x-show="open" x-cloak x-transition.opacity class="card absolute right-0 z-30 mt-1 w-44 p-1">
+    <a href="{% url 'dataio:export' resource 'csv' %}{% if query %}?{{ query }}{% endif %}" class="nav-link" @click="open = false">{% icon "file-text" %} CSV</a>
+    <a href="{% url 'dataio:export' resource 'xlsx' %}{% if query %}?{{ query }}{% endif %}" class="nav-link" @click="open = false">{% icon "file-spreadsheet" %} Excel</a>
+  </div>
+</div>
+{% endif %}

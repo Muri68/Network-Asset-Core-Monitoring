@@ -629,22 +629,3 @@ AUDIT_ACTION_META = {
     "incident_open": ("Incident opened", "down"),
 }
 
-IMPORT_RESOURCES = [
-    {"key": "devices", "label": "Devices", "icon": "server", "rows": len(DEVICES)},
-    {"key": "ports", "label": "Ports", "icon": "ethernet-port", "rows": 412},
-    {"key": "connections", "label": "Connections", "icon": "cable", "rows": len(CONNECTIONS)},
-    {"key": "prefixes", "label": "Prefixes", "icon": "globe", "rows": len(PREFIXES)},
-    {"key": "ips", "label": "IP addresses", "icon": "map-pin", "rows": len(IP_ASSIGNMENTS)},
-    {"key": "vlans", "label": "VLANs", "icon": "hash", "rows": len(VLANS)},
-    {"key": "racks", "label": "Locations & racks", "icon": "layers", "rows": len(RACKS)},
-    {"key": "monitors", "label": "Monitors", "icon": "activity", "rows": len(MONITORS)},
-]
-
-IMPORT_PREVIEW = [
-    {"row": 2, "action": "create", "name": "SW-ACCESS-03", "detail": "Cisco CBS350-48P · Rack 3 U26", "error": ""},
-    {"row": 3, "action": "create", "name": "SW-ACCESS-04", "detail": "Cisco CBS350-48P · Rack 3 U25", "error": ""},
-    {"row": 4, "action": "update", "name": "NVR-02", "detail": "firmware V4.74.105 → V4.75.010", "error": ""},
-    {"row": 5, "action": "error", "name": "CAM-WH-01", "detail": "", "error": "Management IP 10.20.1.21 already assigned to CAM-LOBBY-01"},
-    {"row": 6, "action": "error", "name": "SW-ACCESS-05", "detail": "", "error": "Rack 3 U26 overlaps SW-ACCESS-03 (row 2)"},
-    {"row": 7, "action": "create", "name": "AP-FL3-01", "detail": "Ubiquiti U6 Pro · no rack", "error": ""},
-]

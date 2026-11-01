@@ -103,6 +103,7 @@ def device_detail(request, pk):
         **device_ips(device),
         "monitors": _device_monitors(device),
         "credentials": device.credentials.select_related("folder") if can(request.user, "vault") else [],
+        "port_query": f"device={device.pk}",
         "d": device,
         "attributes": device.attributes.all(),
         "children": device.children.exclude(status=Device.Status.RETIRED).select_related("device_model"),
@@ -245,7 +246,7 @@ def rack_detail(request, pk):
     return render(request, "inventory/rack_detail.html", {
         "rack": rack, "front": rack_layout(rack, "front"), "rear": rack_layout(rack, "rear"),
         "devices": devices_in, "siblings": Rack.objects.filter(location=rack.location),
-        "active": "racks",
+        "rack_query": f"rack={rack.pk}", "active": "racks",
     })
 
 

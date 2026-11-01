@@ -8,6 +8,7 @@
   {% if siblings|length > 1 %}
     <div class="flex flex-wrap gap-1">{% for r in siblings %}<a href="{% url 'inventory:rack_detail' r.pk %}" class="chip {% if r.pk == rack.pk %}chip-active{% endif %}">{{ r.name }}</a>{% endfor %}</div>
   {% endif %}
+  {% include "components/export_menu.html" with resource="devices" query=rack_query label="Export rack" %}
   {% if can.edit %}
     <a href="{% url 'inventory:rack_edit' rack.pk %}" class="btn">{% icon "pencil" %} Edit</a>
     <a href="{% url 'inventory:device_new' %}?rack={{ rack.pk }}" class="btn btn-primary">{% icon "plus" %} Add device</a>

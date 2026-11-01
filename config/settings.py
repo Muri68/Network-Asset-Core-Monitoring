@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.monitoring",
     "apps.alerts",
     "apps.vault",
+    "apps.dataio",
     "apps.ui",
 ]
 

@@ -63,6 +63,14 @@ python manage.py vault_rotate_key              # re-encrypts everything with the
 # then remove the old key and restart again;  --check shows which keys are in use
 ```
 
+### Import / export
+
+**Import / export** (Admins import, Engineers and Admins export): download the Excel template, fill in
+the sheets you need (Locations, Racks, VLANs, Devices, Ports, Connections, Prefixes, IP addresses,
+Monitors) and upload it. The preview shows every row as new / update / no change / error; nothing is
+saved until you confirm, and the import is all-or-nothing. Rows are matched by name (device + port,
+IP address, prefix…), so you can export, edit in Excel and import again to update in bulk.
+
 Five wrong reveal codes lock that person's vault and alert the Admins on Telegram; an Admin
 unlocks it in **Users & roles**.
 
@@ -93,7 +101,8 @@ apps/ipam/         ISPs, circuits, prefixes (subnet maths), IP addresses, NAT
 apps/monitoring/   Checkers, state machine, run_monitor process, incidents, maintenance
 apps/alerts/      Telegram client, notification outbox (down / still down / up / SSL), linking
 apps/vault/       Encrypted credentials, folders, password history, reveal flow, access log, key rotation
-apps/ui/           Dashboard, settings page, remaining sample-data views (import/export), template tags
+apps/dataio/      Import (preview / commit) and export: CSV & Excel, templates, natural-key matching
+apps/ui/           Dashboard, settings page (other tabs still sample), template tags
 templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
 tests/             pytest suite
 assets/css/        Tailwind source (design tokens & components)

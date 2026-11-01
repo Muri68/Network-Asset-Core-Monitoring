@@ -65,7 +65,9 @@ PAGES = [
     ("alerts:card", [], "view"),
     ("audit:log", [], "audit"),
     ("audit:export", [], "audit"),
-    ("ui:data", [], "export"),
+    ("dataio:data", [], "export"),
+    ("dataio:template", ["all", "xlsx"], "export"),
+    ("dataio:export", ["devices", "csv"], "export"),
     ("ui:settings", [], "settings"),
     ("accounts:users", [], "manage_users"),
     ("accounts:profile", [], "view"),
@@ -78,9 +80,9 @@ POST_ONLY = {
     "inventory:device_delete", "inventory:device_retire", "inventory:location_delete", "inventory:rack_delete",
     "ipam:circuit_delete", "ipam:ip_delete", "ipam:isp_delete", "ipam:prefix_delete", "monitoring:incident_ack",
     "monitoring:maintenance_delete", "monitoring:maintenance_end", "monitoring:monitor_action",
-    "monitoring:monitor_delete", "ui:import_preview", "vault:credential_reveal", "vault:credential_copied",
-    "vault:credential_delete", "vault:history_reveal", "vault:folder_delete", "alerts:settings_save",
-    "alerts:settings_test", "alerts:link", "alerts:unlink", "alerts:mute", "alerts:test",
+    "monitoring:monitor_delete", "dataio:preview", "dataio:confirm", "vault:credential_reveal",
+    "vault:credential_copied", "vault:credential_delete", "vault:history_reveal", "vault:folder_delete",
+    "alerts:settings_save", "alerts:settings_test", "alerts:link", "alerts:unlink", "alerts:mute", "alerts:test",
 }
 PUBLIC = {"accounts:login", "accounts:login_password", "accounts:login_2fa_setup", "accounts:login_2fa"}
 SPECIAL = {"accounts:backup_codes", "accounts:reveal_code_setup", "accounts:user_edit"}
@@ -90,7 +92,7 @@ def test_every_url_is_covered():
     from django.urls import get_resolver
 
     names = set()
-    for ns in ("ui", "accounts", "audit", "inventory", "dcim", "ipam", "monitoring", "alerts", "vault"):
+    for ns in ("ui", "accounts", "audit", "inventory", "dcim", "ipam", "monitoring", "alerts", "vault", "dataio"):
         resolver = get_resolver().namespace_dict[ns][1]
         names |= {f"{ns}:{n}" for n in resolver.reverse_dict if isinstance(n, str)}
     covered = {name for name, _, _ in PAGES} | POST_ONLY | PUBLIC | SPECIAL
@@ -138,7 +140,8 @@ def objects(db):
 
 
 def resolve(args, objects):
-    return [objects[a] if isinstance(a, str) else a for a in args]
+    """Object names ("device") become their pk; other values (e.g. "csv") are passed as they are."""
+    return [objects.get(a, a) if isinstance(a, str) else a for a in args]
 
 
 @pytest.mark.django_db
@@ -173,14 +176,14 @@ def test_vault_reveal_post(as_user, objects, role, allowed):
 @pytest.mark.parametrize("role,allowed", [(roles.ADMIN, True), (roles.ENGINEER, False), (roles.VIEWER, False)])
 def test_import_is_admin_only(as_user, role, allowed):
     client = as_user(make_user(role))
-    response = client.post(reverse("ui:import_preview"), {"resource": "devices"})
-    assert response.status_code == (200 if allowed else 403)
+    response = client.post(reverse("dataio:preview"), {"resource": "devices"})
+    assert response.status_code == (400 if allowed else 403)  # 400: no file attached
 
 
 @pytest.mark.django_db
 def test_viewer_sees_no_admin_or_vault_links(as_user, viewer):
     html = as_user(viewer).get(reverse("ui:dashboard")).content.decode()
-    for name in ("vault:vault", "audit:log", "ui:settings", "accounts:users", "ui:data", "monitoring:monitor_new"):
+    for name in ("vault:vault", "audit:log", "ui:settings", "accounts:users", "dataio:data", "monitoring:monitor_new"):
         assert f'href="{reverse(name)}"' not in html, name
     assert '"kind": "Credential"' not in html  # search palette doesn't list credentials
 

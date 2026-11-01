@@ -1,28 +1,62 @@
-<section class="card" x-data>
-  <div class="card-head">
-    <div><h2 class="card-title">Preview · devices.xlsx</h2><p class="mt-0.5 text-xs text-muted">Nothing has been saved yet.</p></div>
-    <div class="flex gap-1.5"><span class="pill pill-up">{{ creates }} new</span><span class="pill pill-info">{{ updates }} update</span><span class="pill pill-down">{{ errors }} error{{ errors|pluralize }}</span></div>
-  </div>
-  <div class="table-wrap">
-    <table class="table">
-      <thead><tr><th>Row</th><th>Action</th><th>Name</th><th>Details</th></tr></thead>
-      <tbody>
-        {% for r in rows %}
-          <tr>
-            <td class="mono text-muted">{{ r.row }}</td>
-            <td>{% if r.action == "create" %}<span class="pill pill-up">Create</span>{% elif r.action == "update" %}<span class="pill pill-info">Update</span>{% else %}<span class="pill pill-down">Error</span>{% endif %}</td>
-            <td class="font-medium">{{ r.name }}</td>
-            <td class="{% if r.error %}text-down{% else %}text-ink-2{% endif %}">{{ r.error|default:r.detail }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
-    <p class="text-xs text-muted">Fix the {{ errors }} error rows and upload again, or import only the valid rows.</p>
-    <div class="flex gap-2">
-      <button class="btn" @click="$el.closest('section').remove()">Discard</button>
-      <button class="btn btn-primary" @click="$store.toast.show('{{ creates|add:updates }} rows imported — prototype only'); $el.closest('section').remove()">Import {{ creates|add:updates }} valid rows</button>
-    </div>
+{% if file_error %}
+<section class="card">
+  <div class="card-body flex items-start gap-3 text-[13px]">
+    <span class="icon-chip text-down">{% icon "circle-x" "size-4" %}</span>
+    <div><div class="font-medium text-down">The file can't be imported</div><p class="mt-1 text-ink-2">{{ file_error }}</p></div>
   </div>
 </section>
+{% else %}
+<section class="card" x-data>
+  <div class="card-head flex-wrap gap-2">
+    <div><h2 class="card-title">Preview · {{ filename }}</h2><p class="mt-0.5 text-xs text-muted">Nothing has been saved yet.</p></div>
+    <button type="button" class="btn btn-ghost btn-sm" @click="$el.closest('section').remove()">{% icon "x" "size-3.5" %} Discard</button>
+  </div>
+
+  {% for p in report.problems %}
+  <div class="mx-5 mb-3 flex items-start gap-2 rounded-lg border border-down/30 bg-down-soft px-3 py-2.5 text-[13px] text-down">{% icon "circle-x" "size-4 mt-0.5 shrink-0" %}<p>{{ p }}</p></div>
+  {% endfor %}
+
+  {% for s in report.sheets %}
+  <div class="border-t border-line">
+    <div class="flex flex-wrap items-center gap-2 px-5 py-3">
+      <span class="icon-chip">{% icon s.resource.icon "size-4" %}</span>
+      <div class="flex-1"><div class="text-[13px] font-semibold">{{ s.resource.label }}</div>{% if s.sheet != s.resource.label %}<div class="text-xs text-muted">from “{{ s.sheet }}”</div>{% endif %}</div>
+      <span class="pill pill-up">{{ s.created }} new</span>
+      <span class="pill pill-info">{{ s.updated }} update{{ s.updated|pluralize }}</span>
+      {% if s.unchanged %}<span class="pill pill-muted">{{ s.unchanged }} unchanged</span>{% endif %}
+      {% if s.errors %}<span class="pill pill-down">{{ s.errors }} error{{ s.errors|pluralize }}</span>{% endif %}
+    </div>
+    {% if s.ignored_columns %}<p class="px-5 pb-2 text-xs text-warn">Ignored columns (not recognised): {{ s.ignored_columns|join:", " }}</p>{% endif %}
+    <div class="table-wrap max-h-96 overflow-y-auto">
+      <table class="table">
+        <thead><tr><th class="w-16">Row</th><th class="w-28">Action</th><th>Record</th><th>Details</th></tr></thead>
+        <tbody>
+          {% for r in s.rows %}
+            <tr>
+              <td class="mono text-muted">{{ r.row }}</td>
+              <td>{% if r.action == "create" %}<span class="pill pill-up">Create</span>{% elif r.action == "update" %}<span class="pill pill-info">Update</span>{% elif r.action == "unchanged" %}<span class="pill pill-muted">No change</span>{% else %}<span class="pill pill-down">Error</span>{% endif %}</td>
+              <td class="font-medium">{{ r.name|default:"—" }}</td>
+              <td class="{% if r.action == 'error' %}text-down{% else %}text-ink-2{% endif %}">{{ r.detail }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
+    {% if report.errors %}
+      <p class="text-[13px] text-down">{% icon "circle-x" "size-4 mr-1 inline" %}Nothing can be imported until the {{ report.errors }} error{{ report.errors|pluralize }} {{ report.errors|pluralize:"is,are" }} fixed. Correct the file and preview it again.</p>
+    {% elif not report.changes %}
+      <p class="text-[13px] text-muted">Everything in this file is already up to date — nothing to import.</p>
+    {% else %}
+      <p class="text-xs text-muted">All rows are valid. Everything is imported together, or nothing is.</p>
+      <form method="post" action="{% url 'dataio:confirm' %}">{% csrf_token %}
+        <input type="hidden" name="token" value="{{ token }}">
+        <button class="btn btn-primary">{% icon "check" %} Import {{ report.changes }} change{{ report.changes|pluralize }}</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

@@ -4,7 +4,7 @@
 {% block heading %}VLANs{% endblock %}
 {% block page_title %}VLANs{% endblock %}
 {% block page_subtitle %}{{ vlans|length }} VLAN{{ vlans|length|pluralize }}. Counts show how many ports use each one as access/untagged or tagged on a trunk.{% endblock %}
-{% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-vlan')">{% icon "plus" %} Add VLAN</button>{% endif %}{% endblock %}
+{% block page_actions %}{% include "components/export_menu.html" with resource="vlans" %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-vlan')">{% icon "plus" %} Add VLAN</button>{% endif %}{% endblock %}
 
 {% block content %}
 {% if vlans %}

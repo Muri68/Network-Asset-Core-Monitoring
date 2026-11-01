@@ -5,6 +5,7 @@
 {% block page_title %}Monitors{% endblock %}
 {% block page_subtitle %}{{ total }} monitor{{ total|pluralize }} · a monitor goes down after its set number of failed checks in a row.{% endblock %}
 {% block page_actions %}
+  {% include "components/export_menu.html" with resource="monitors" %}
   {% if can.edit %}<a href="{% url 'monitoring:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>{% endif %}
 {% endblock %}
 

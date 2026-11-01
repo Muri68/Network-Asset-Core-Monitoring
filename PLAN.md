@@ -384,7 +384,13 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - Device "Credentials" tab
 - **Done when:** a reveal without the right code is impossible, every reveal/copy/failure is logged, DB dumps contain only ciphertext, and key rotation works end-to-end.
 
-### Phase 8 — Import / export
+### Phase 8 — Import / export ✅ (owner approved 2026-11-01)
+- Done: `apps/dataio` (named so it doesn't shadow Python's `io`), own small engine instead of `django-import-export`: every row goes through the **same form the web page uses**, so imports are validated exactly like typed-in data (rack overlaps, duplicate IPs, ports already connected, IP outside its prefix…). `openpyxl` for Excel.
+- Resources: Locations, Racks, VLANs, Devices, Ports, Connections, Prefixes, IP addresses, Monitors (credentials never). An Excel workbook may hold several sheets, imported in dependency order; a CSV holds one type (chosen, or detected from the file name).
+- Preview = the real import inside a transaction, then rolled back, so rows depending on earlier rows work and rows clashing with each other are caught. Commit is all-or-nothing and refused while any row has an error (no "import valid rows only"). References further down the same sheet (a device's parent, a monitor's parent) are retried at the end.
+- Matching by natural keys, case-insensitive without renaming; only the key columns are needed to update (e.g. Name + Firmware); columns left out keep their value, empty cells clear it. Choices accept value or label ("Ping" / "Ping (ICMP)").
+- Templates: Excel with every sheet + "Read me" sheet (column meanings, examples), CSV per type. Exports: CSV and Excel for each type, "Export everything" workbook that imports back with no changes, Export buttons on Devices, Racks, Connections, VLANs, Prefixes, Monitors, rack page (devices in the rack) and device ports tab (port map with what each port connects to). CSV/Excel exports are formula-injection safe. Every import and export is in the audit log, plus per-record create/update entries.
+- Checks: 657 pytest tests (29 new, incl. a 205-row locations/racks/VLANs/devices/ports/connections workbook: preview saves nothing, import saves all, re-import = no changes, export-everything round-trip; conflicts file rejected with row errors), ruff clean, browser run: upload → preview (205 new) → import → mistakes file shows 4 clear row errors, no JS errors.
 - Resources, templates, dry-run preview, commit, audit entries
 - Export buttons on every major list (CSV/XLSX); rack and port-map export
 - **Done when:** a 200-row device + port + connection spreadsheet imports cleanly, and a file with conflicts is rejected with clear row-level errors.

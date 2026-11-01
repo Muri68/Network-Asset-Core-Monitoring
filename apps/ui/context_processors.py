@@ -34,7 +34,7 @@ NAV = [
     ]),
     ("Administration", [
         ("users", "Users & roles", "users", "accounts:users", "manage_users"),
-        ("data", "Import / export", "file-spreadsheet", "ui:data", "export"),
+        ("data", "Import / export", "file-spreadsheet", "dataio:data", "export"),
         ("settings", "Settings", "settings", "ui:settings", "settings"),
     ]),
 ]

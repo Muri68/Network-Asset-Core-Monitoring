@@ -5,6 +5,7 @@
 {% block page_title %}Prefixes & IP addresses{% endblock %}
 {% block page_subtitle %}Public blocks from your ISPs and private subnets. Open one to see every address and who uses it.{% endblock %}
 {% block page_actions %}
+  {% include "components/export_menu.html" with resource="prefixes" %}
   <a href="{% url 'ipam:calculator' %}" class="btn">{% icon "grid-3x3" %} Calculator</a>
   {% if can.edit %}<a href="{% url 'ipam:prefix_new' %}" class="btn btn-primary">{% icon "plus" %} Add prefix</a>{% endif %}
 {% endblock %}
