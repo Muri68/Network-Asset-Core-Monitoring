@@ -5,7 +5,7 @@
 {% block page_title %}Locations & racks{% endblock %}
 {% block page_subtitle %}{% if sections %}{{ sections|length }} location{{ sections|length|pluralize }}{% if unracked %} · {{ unracked }} device{{ unracked|pluralize }} not in a rack{% endif %}. Click a device to open it.{% else %}Start with a location, then add its racks.{% endif %}{% endblock %}
 {% block page_actions %}
-  {% include "components/export_menu.html" with resource="racks" %}
+  {% url 'dataio:rack_map' 'all' as map_url %}{% include "components/export_menu.html" with resource="racks" map_url=map_url map_label="Connection map, all racks" %}
   {% if can.edit %}
     <button class="btn" x-data @click="$dispatch('open-location')">{% icon "map-pin" %} Add location</button>
     {% if sections %}<button class="btn btn-primary" x-data @click="$dispatch('open-rack')">{% icon "plus" %} Add rack</button>{% endif %}

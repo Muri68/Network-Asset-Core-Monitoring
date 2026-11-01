@@ -26,6 +26,7 @@
       <div class="card-body grid gap-4 sm:grid-cols-2">
         {% include "components/field.html" with field=form.name %}
         {% include "components/field.html" with field=form.device_type %}
+        {% include "components/field.html" with field=form.purpose cls="sm:col-span-2" %}
         <div>
           <label class="field-label" for="id_manufacturer_name">Manufacturer *</label>
           <input id="id_manufacturer_name" name="manufacturer_name" list="manufacturers" value="{{ form.manufacturer_name.value|default:'' }}" class="input" placeholder="Cisco" required aria-invalid="{% if form.manufacturer_name.errors %}true{% else %}false{% endif %}">

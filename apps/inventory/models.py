@@ -141,6 +141,8 @@ class Device(TrackedModel):
         REAR = "rear", "Rear"
 
     name = models.CharField(max_length=100)
+    purpose = models.CharField("purpose / function", max_length=255, blank=True,
+                               help_text="What it does, e.g. “Core switching; carries the internal VLANs”.")
     device_type = models.CharField("type", max_length=20, choices=DeviceType.choices, default=DeviceType.OTHER)
     device_model = models.ForeignKey(DeviceModel, on_delete=models.PROTECT, related_name="devices",
                                      verbose_name="model")

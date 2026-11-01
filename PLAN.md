@@ -395,6 +395,10 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - Export buttons on every major list (CSV/XLSX); rack and port-map export
 - **Done when:** a 200-row device + port + connection spreadsheet imports cleanly, and a file with conflicts is rejected with clear row-level errors.
 
+### Owner's changes before production (2026-11-01)
+- ✅ Dashboard: counter cards removed; status rings link to the filtered monitor list (pending and paused split) and refresh every 10 s; SSL certificates under Network health; Inventory by type beside them under Status overview; subnet utilisation full width.
+- ✅ Racks: device **Purpose / function** field (form, device page, import/export). **Connection map** export in the owner's spreadsheet layout — one sheet per rack, devices from the top U down: Serial · Rack number · Rack unit · Device · Connected to (a. b. c. per connected port, bold letters and TRUNK, "on RACK 2 Unit 36" for other racks, connection function in brackets) · Purpose · Remark (device notes); "Not in use" when a device has neither; landscape A4, one page wide, header row repeated. On the rack page, the Racks list, the Connections page and Import / export; audited.
+
 ### Phase 9 — Production deployment & hardening
 - `compose.prod.yml`: Nginx (internal TLS cert), Gunicorn, workers, beat, Postgres, Redis; `sysctls: net.ipv4.ping_group_range` for unprivileged ping
 - Ubuntu host hardening guide (ufw LAN-only, unattended-upgrades, SSH keys only)

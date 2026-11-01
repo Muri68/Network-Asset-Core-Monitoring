@@ -258,6 +258,7 @@ class Devices(Resource):
     key, label, icon, model, order = "devices", "Devices", "server", Device, 4
     columns = [
         Col("Name", "Unique device name", "SW-CORE-01", True),
+        Col("Purpose", "What it does", "Core switching; carries the internal VLANs"),
         Col("Type", "Switch, Router, Firewall, Server, Access point, Camera, NVR, Patch panel, UPS, …", "Switch"),
         Col("Status", "Active, Spare, Faulty or Retired (default Active)", "Active"),
         Col("Manufacturer", example="Cisco", required=True), Col("Model", example="C9300-48P", required=True),
@@ -282,7 +283,8 @@ class Devices(Resource):
 
     def values(self, d):
         return {
-            "Name": d.name, "Type": d.get_device_type_display(), "Status": d.get_status_display(),
+            "Name": d.name, "Purpose": d.purpose, "Type": d.get_device_type_display(),
+            "Status": d.get_status_display(),
             "Manufacturer": d.device_model.manufacturer.name, "Model": d.device_model.name,
             "Location": d.location.name, "Rack": d.rack.name if d.rack else "",
             "Position (U)": str(d.position_u or ""), "Height (U)": str(d.height_u), "Face": d.get_face_display(),
@@ -306,7 +308,8 @@ class Devices(Resource):
             raise RowError("Location: give a location (or a rack).")
         parent = device_named(v["Parent"])
         return DeviceForm({
-            "name": v["Name"], "device_type": choice(Device, "device_type", v["Type"], "Type") or "other",
+            "name": v["Name"], "purpose": v["Purpose"],
+            "device_type": choice(Device, "device_type", v["Type"], "Type") or "other",
             "status": choice(Device, "status", v["Status"], "Status") or "active",
             "manufacturer_name": v["Manufacturer"], "model_name": v["Model"],
             "location": location.pk, "rack": _pk(rack), "position_u": v["Position (U)"],

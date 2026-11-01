@@ -5,7 +5,7 @@
 {% block page_title %}Connections{% endblock %}
 {% block page_subtitle %}Every cable in one place: {{ total }} connection{{ total|pluralize }}. Each one also shows on both devices' Ports tab.{% endblock %}
 {% block page_actions %}
-  {% include "components/export_menu.html" with resource="connections" %}
+  {% url 'dataio:rack_map' 'all' as map_url %}{% include "components/export_menu.html" with resource="connections" map_url=map_url map_label="Connection map by rack" %}
   {% if can.edit %}<a href="{% url 'dcim:connection_new' %}" class="btn btn-primary">{% icon "plus" %} Add connection</a>{% endif %}
 {% endblock %}
 

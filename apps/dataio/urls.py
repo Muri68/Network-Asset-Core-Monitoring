@@ -10,4 +10,5 @@ urlpatterns = [
     path("data/import/confirm/", views.confirm, name="confirm"),
     path("data/template/<str:key>.<str:fmt>", views.template, name="template"),
     path("data/export/<str:key>.<str:fmt>", views.export, name="export"),
+    path("data/connection-map/<str:key>.xlsx", views.rack_map, name="rack_map"),
 ]

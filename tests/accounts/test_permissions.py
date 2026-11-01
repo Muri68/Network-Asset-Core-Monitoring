@@ -68,6 +68,7 @@ PAGES = [
     ("dataio:data", [], "export"),
     ("dataio:template", ["all", "xlsx"], "export"),
     ("dataio:export", ["devices", "csv"], "export"),
+    ("dataio:rack_map", ["all"], "export"),
     ("ui:settings", [], "settings"),
     ("accounts:users", [], "manage_users"),
     ("accounts:profile", [], "view"),

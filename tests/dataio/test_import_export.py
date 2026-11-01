@@ -290,7 +290,7 @@ class TestTemplates:
         content = as_user(admin).get(reverse("dataio:template", args=["all", "xlsx"])).content
         book = load_workbook(io.BytesIO(content))
         assert book.sheetnames[0] == "Read me" and "Devices" in book.sheetnames and "Monitors" in book.sheetnames
-        assert [c.value for c in book["Devices"][1]][:2] == ["Name", "Type"]
+        assert [c.value for c in book["Devices"][1]][:3] == ["Name", "Purpose", "Type"]
 
     def test_csv_template_example_imports(self, as_user, admin):
         client = as_user(admin)

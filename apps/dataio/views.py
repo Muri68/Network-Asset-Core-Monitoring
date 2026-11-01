@@ -1,4 +1,5 @@
 import json
+import re
 import secrets
 import time
 from pathlib import Path
@@ -13,7 +14,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.decorators import capability_required
 from apps.audit.log import log_event
 
-from . import importer
+from . import importer, rackmap
 from .files import FileError, read_upload, write_csv, write_xlsx
 from .resources import RESOURCES
 
@@ -169,3 +170,20 @@ def export(request, key, fmt):
     if fmt == "csv":
         return _download(write_csv(resource.headers, rows), name, "text/csv; charset=utf-8")
     return _download(write_xlsx([(resource.label, resource.headers, rows)]), name, XLSX)
+
+
+@capability_required("export")
+def rack_map(request, key):
+    """Connection map in the spreadsheet layout: one rack (`key` = its id) or every rack (`key` = "all")."""
+    racks = rackmap.all_racks()
+    if key != "all":
+        if not key.isdigit():
+            raise Http404
+        racks = racks.filter(pk=key)
+        if not racks.exists():
+            raise Http404
+    racks = list(racks)
+    scope = "all racks" if key == "all" else str(racks[0])
+    log_event("export", message=f"Connection map, {scope} (Excel, {len(racks)} sheet{'s' if len(racks) != 1 else ''})")
+    name = "all-racks" if key == "all" else re.sub(r"[^A-Za-z0-9]+", "-", racks[0].name).strip("-").lower()
+    return _download(rackmap.workbook(racks), f"netcore-connection-map-{name}-{timezone.localdate()}.xlsx", XLSX)

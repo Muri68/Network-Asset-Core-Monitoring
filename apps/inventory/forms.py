@@ -44,7 +44,7 @@ class DeviceForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Device
         fields = [
-            "name", "device_type", "status", "serial", "asset_tag", "firmware", "mgmt_ip", "mac",
+            "name", "purpose", "device_type", "status", "serial", "asset_tag", "firmware", "mgmt_ip", "mac",
             "location", "rack", "position_u", "height_u", "face", "parent",
             "purchase_date", "warranty_expiry", "owner", "notes",
         ]

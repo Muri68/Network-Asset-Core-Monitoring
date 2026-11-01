@@ -64,6 +64,7 @@
         <dt class="text-muted">Manufacturer</dt><dd>{{ d.manufacturer }}</dd>
         <dt class="text-muted">Model</dt><dd>{{ d.device_model.name }}</dd>
         <dt class="text-muted">Type</dt><dd>{{ d.type_label }}</dd>
+        <dt class="text-muted">Purpose</dt><dd>{{ d.purpose|default:"—" }}</dd>
         <dt class="text-muted">Serial number</dt><dd class="mono">{{ d.serial|default:"—" }}</dd>
         <dt class="text-muted">Asset tag</dt><dd class="mono">{{ d.asset_tag|default:"—" }}</dd>
         <dt class="text-muted">Firmware / OS</dt><dd>{{ d.firmware|default:"—" }}</dd>
