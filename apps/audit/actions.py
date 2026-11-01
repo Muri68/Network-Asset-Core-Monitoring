@@ -33,6 +33,7 @@ ACTIONS = {
     "vault_locked": ("Vault locked", "down"),
     "settings_change": ("Settings changed", "info"),
     "maintenance_start": ("Maintenance started", "maint"),
+    "incident_ack": ("Incident acknowledged", "info"),
 }
 
 CHOICES = [(key, label) for key, (label, _tone) in ACTIONS.items()]

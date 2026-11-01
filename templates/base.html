@@ -68,11 +68,16 @@
     </nav>
 
     <div class="border-t border-line p-3">
-      <div class="inset flex items-center gap-2.5 p-3">
-        <span class="dot dot-up"></span>
+      <div class="inset flex items-center gap-2.5 p-3" title="The monitor process runs the checks: python manage.py run_monitor">
+        {% if checker.alive %}<span class="dot dot-up"></span>{% else %}<span class="dot dot-down"></span>{% endif %}
         <div class="min-w-0 text-[11px] leading-tight">
-          <div class="font-medium text-ink">Checker running</div>
-          <div class="text-muted">{{ shell_counts.up }} up · {{ shell_counts.down }} down · 60s cycle</div>
+          {% if checker.alive %}
+            <div class="font-medium text-ink">Checker running</div>
+            <div class="text-muted">{{ shell_counts.up }} up · {{ shell_counts.down }} down · {{ checker.checks_last_minute }} checks/min</div>
+          {% else %}
+            <div class="font-medium text-down">Checker not running</div>
+            <div class="text-muted">Start it: <span class="mono">manage.py run_monitor</span></div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -89,12 +94,12 @@
 
       <div class="ml-auto flex items-center gap-1.5">
         {% if shell_counts.down %}
-          <a href="{% url 'ui:monitors' %}?status=down" class="pill pill-down hidden sm:inline-flex">
+          <a href="{% url 'monitoring:monitors' %}?status=down" class="pill pill-down hidden sm:inline-flex">
             <span class="dot dot-down"></span>{{ shell_counts.down }} down
           </a>
         {% endif %}
         {% if shell_counts.unreachable %}
-          <a href="{% url 'ui:monitors' %}?status=unreachable" class="pill pill-unreach hidden md:inline-flex">
+          <a href="{% url 'monitoring:monitors' %}?status=unreachable" class="pill pill-unreach hidden md:inline-flex">
             {{ shell_counts.unreachable }} unreachable
           </a>
         {% endif %}
@@ -108,12 +113,12 @@
         <div class="relative" x-data="{ open: false }" @click.outside="open = false">
           <button class="btn btn-ghost btn-icon relative" @click="open = !open" aria-label="Notifications">
             {% icon "bell" "size-[18px]" %}
-            <span class="absolute top-2 right-2 size-2 rounded-full bg-down ring-2 ring-bg"></span>
+            {% if nav_badges.incidents %}<span class="absolute top-2 right-2 size-2 rounded-full bg-down ring-2 ring-bg"></span>{% endif %}
           </button>
           <div x-show="open" x-cloak x-transition.origin.top.right
                class="card absolute right-0 mt-2 w-80 overflow-hidden p-0">
-            <div class="card-head border-b border-line pb-3"><span class="card-title">Recent alerts</span>
-              <a class="link-more" href="{% url 'ui:incidents' %}">View all {% icon "arrow-up-right" "size-3" %}</a></div>
+            <div class="card-head border-b border-line pb-3"><span class="card-title">Recent events</span>
+              <a class="link-more" href="{% url 'monitoring:incidents' %}">View all {% icon "arrow-up-right" "size-3" %}</a></div>
             {% include "partials/alert_list.html" with compact=True %}
           </div>
         </div>
@@ -154,7 +159,7 @@
     </main>
 
     <footer class="mx-auto max-w-[1600px] px-4 pb-8 text-[11px] text-faint sm:px-6 lg:px-8">
-      NetCore · Sign-in, users, audit log, inventory, ports, connections and IP addressing are live. Other pages still show sample data and don't save anything.
+      NetCore · Everything except the password vault, Telegram alerts and settings is live. Other pages still show sample data and don't save anything.
     </footer>
   </div>
 

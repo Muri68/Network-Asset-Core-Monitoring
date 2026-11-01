@@ -50,7 +50,7 @@ Versions checked against PyPI on 2026-10-31. Pin exact versions in `requirements
 | Framework | **Django 6.1.x** | Built-in CSP support (6.0+). Upgrade to 6.2 LTS when released (≈ Apr 2027) |
 | Database | **PostgreSQL 17** | Native `inet`/`cidr` types for IPAM |
 | Queue / cache | **Redis 7** | Celery broker + cache + rate-limit counters |
-| Background jobs | **Celery 5.6** + celery-beat | Check scheduling, alert outbox, rollups, retention |
+| Background jobs | **One monitor process** (`manage.py run_monitor`, asyncio) | Owner's choice 2026-11-01, instead of Celery + Redis: checks, roll-ups, retention (and Phase 6 alerts) in one process |
 | UI | HTMX 2, Tailwind CSS (standalone CLI via `django-tailwind-cli`, no Node needed), Alpine.js (small UI bits), Chart.js (response-time graphs) | Dark mode supported |
 | 2FA | `django-otp` (TOTP) | Mandatory for all users |
 | Brute-force protection | `django-axes` | Login lockout |
@@ -343,7 +343,15 @@ Each phase ends with: working feature, tests passing, a short demo/review with y
 - **Done when:** entering `129.205.100.140/28` shows network `.128`, usable `.129–.142`, broadcast `.143`, mask `255.255.255.240`, and each IP can be assigned.
   *(Note: `.140/28` normalises to network `129.205.100.128/28` — the UI will warn and offer to correct a host-bit address.)*
 
-### Phase 5 — Monitoring engine & dashboard
+### Phase 5 — Monitoring engine & dashboard ✅ (owner approved 2026-11-01)
+- **Decision (owner, 2026-11-01):** one monitor process — `python manage.py run_monitor` — instead of Celery + Redis. Checks run concurrently with asyncio (up to 100 at once); results go through the state machine in the database. SQLite runs in WAL mode so the web app and the monitor write at the same time.
+- Done: `apps/monitoring` with Monitor (config + live state on the same row; only config is audited), CheckResult (30 days), DailyUptime (forever), Incident, MaintenanceWindow (one-time / daily / weekly, devices and/or monitors, optionally everything behind them), MonitorHeartbeat.
+- Checkers: ping (unprivileged ICMP), TCP, HTTP(S) status, HTTP keyword, DNS (record type + expected value), SSL expiry; causes: timeout, connection refused, host unreachable, DNS failure, HTTP status, keyword missing, TLS error, certificate expired.
+- State machine per §7.1: pending → down after N failures; recovery closes the incident; UNREACHABLE behind a down parent (explicit parent, or the monitor of the device's upstream device) grouped under the root incident; child waits while its parent is pending; already-down children re-filed under a parent that goes down; children still failing after the parent recovers become down in their own right; maintenance mutes without losing history. Every status change fires `status_changed` (Phase 6 Telegram hooks in there).
+- Pages: real monitor list (heartbeat bars, 24h uptime), detail (uptime 24h/30d, response chart, dependency chain, incidents), add/edit form per type, check now / pause / resume, incidents (acknowledge — audited), maintenance windows (end now ends only the current occurrence), dashboard (counters, gauge, rings, daily uptime, web response time, open incidents, SSL expiry, recent events), device Monitors tab with "Monitor this device", sidebar shows whether the checker is actually running, bell menu shows recent events.
+- Time zone now a setting (`DJANGO_TIME_ZONE`, set to Africa/Lagos locally) — PLAN.md A14.
+- Fixes from the owner's manual check: ping/TCP monitors couldn't be saved (hidden HTTP/DNS fields weren't posted — now always posted, with model defaults as fallback, and any form error shows a banner); SSL checks name the missing intermediate on an incomplete chain (found on army.mil.ng) and still record expiry; SSL monitors can "only track the expiry date".
+- Checks: 508 pytest tests (state machine incl. the parent/child race, real local HTTP/TCP/TLS servers with valid/expired/untrusted certificates, ping, DNS), ruff clean, real `run_monitor` run: closed port → down after 3 checks, dependent monitor → unreachable, port opened → both recovered and incidents closed.
 - Monitor + MonitorState + CheckResult + Incident + MaintenanceWindow models
 - Async checkers (ping, tcp, http/keyword, dns, ssl), dispatcher, dedicated `checks` queue
 - State machine with retries, dependencies (UNREACHABLE), maintenance suppression

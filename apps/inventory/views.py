@@ -100,6 +100,7 @@ def device_detail(request, pk):
     return render(request, "inventory/device_detail.html", {
         **device_ports_context(device),
         **device_ips(device),
+        "monitors": _device_monitors(device),
         "d": device,
         "attributes": device.attributes.all(),
         "children": device.children.exclude(status=Device.Status.RETIRED).select_related("device_model"),
@@ -108,6 +109,17 @@ def device_detail(request, pk):
         "tab": request.GET.get("tab", "overview"),
         "active": "devices",
     })
+
+
+def _device_monitors(device):
+    from apps.monitoring import stats
+
+    monitors = list(device.monitors.all())
+    up24 = stats.uptime([m.pk for m in monitors], 24)
+    for m in monitors:
+        m.uptime_24h = up24.get(m.pk)
+        m.beats = stats.heartbeats(m, 40)
+    return monitors
 
 
 def _save_device(request, form, attributes):

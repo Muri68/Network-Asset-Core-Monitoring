@@ -1,5 +1,5 @@
-{% if form.non_field_errors %}
+{% if form.errors %}
   <div class="flex items-start gap-2 rounded-lg border border-down/30 bg-down-soft px-3 py-2.5 text-[13px] text-down">
-    {% icon "circle-x" "size-4 mt-0.5 shrink-0" %}<div>{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div>
+    {% icon "circle-x" "size-4 mt-0.5 shrink-0" %}<div>{% for e in form.non_field_errors %}<p>{{ e }}</p>{% empty %}<p>Please correct the highlighted fields below.</p>{% endfor %}</div>
   </div>
 {% endif %}

@@ -92,6 +92,14 @@ def gauge(percent, caption=""):
 
 
 @register.filter
+def duration(incident):
+    """Precise incident length: '19s', '12m 40s', '3h 05m'."""
+    from apps.monitoring.models import human_duration
+
+    return human_duration(incident.duration)
+
+
+@register.filter
 def initials(name):
     """'Grace Adeyemi' → 'GA', 'Unknown (grace)' → 'UG', 'System' → 'S'."""
     words = re.findall(r"[^\W_]+", str(name or ""))

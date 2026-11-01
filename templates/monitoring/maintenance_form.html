@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{% if window %}Edit {{ window }}{% else %}Schedule maintenance{% endif %}{% endblock %}
+{% block crumb %}Monitoring / Maintenance{% endblock %}
+{% block heading %}{% if window %}Edit {{ window }}{% else %}Schedule maintenance{% endif %}{% endblock %}
+{% block page_title %}{% if window %}Edit {{ window }}{% else %}Schedule maintenance{% endif %}{% endblock %}
+{% block page_subtitle %}Times are in {{ time_zone }}. For repeating windows, the first start and end set the time of day (and weekday).{% endblock %}
+{% block content %}
+<form method="post" class="card max-w-3xl" novalidate>
+  {% csrf_token %}
+  <div class="grid gap-4 p-5 sm:grid-cols-2">
+    <div class="sm:col-span-2">{% include "components/form_errors.html" %}</div>
+    {% include "components/field.html" with field=form.name cls="sm:col-span-2" %}
+    {% include "components/field.html" with field=form.starts_at %}
+    {% include "components/field.html" with field=form.ends_at %}
+    {% include "components/field.html" with field=form.recurrence %}
+    <label class="flex items-end gap-2 pb-2 text-[13px]">{{ form.include_children }} {{ form.include_children.label|capfirst }}</label>
+    <div>{% include "components/field.html" with field=form.devices %}<p class="hint">Hold ⌘ / Ctrl to choose several.</p></div>
+    <div>{% include "components/field.html" with field=form.monitors %}<p class="hint">Or pick individual monitors (e.g. a website).</p></div>
+    {% include "components/field.html" with field=form.reason cls="sm:col-span-2" %}
+  </div>
+  <div class="flex justify-end gap-2 border-t border-line px-5 py-4">
+    <a href="{% url 'monitoring:maintenance' %}" class="btn">Cancel</a>
+    <button class="btn btn-primary">Save</button>
+  </div>
+</form>
+{% endblock %}

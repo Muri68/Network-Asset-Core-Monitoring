@@ -3,6 +3,8 @@ from django.urls import reverse
 from apps.accounts.roles import can
 from apps.inventory.models import Device
 from apps.ipam.models import IPAddress, Prefix
+from apps.monitoring import stats as monitor_stats
+from apps.monitoring.models import Incident, Monitor, MonitorHeartbeat
 
 from . import fake_data as fd
 
@@ -10,9 +12,9 @@ from . import fake_data as fd
 NAV = [
     ("Monitoring", [
         ("dashboard", "Dashboard", "layout-dashboard", "ui:dashboard", "view"),
-        ("monitors", "Monitors", "activity", "ui:monitors", "view"),
-        ("incidents", "Incidents", "siren", "ui:incidents", "view"),
-        ("maintenance", "Maintenance", "wrench", "ui:maintenance", "view"),
+        ("monitors", "Monitors", "activity", "monitoring:monitors", "view"),
+        ("incidents", "Incidents", "siren", "monitoring:incidents", "view"),
+        ("maintenance", "Maintenance", "wrench", "monitoring:maintenance", "view"),
     ]),
     ("Infrastructure", [
         ("devices", "Devices", "server", "inventory:devices", "view"),
@@ -53,8 +55,8 @@ def _search_index(user, nav):
     devices = Device.objects.exclude(status=Device.Status.RETIRED).select_related("device_model")
     items += [{"kind": "Device", "label": d.name, "sub": f"{d.device_model.name} · {d.mgmt_ip or 'no IP'}",
                "url": d.get_absolute_url(), "icon": d.icon} for d in devices]
-    items += [{"kind": "Monitor", "label": m["name"], "sub": m["target"],
-               "url": reverse("ui:monitor_detail", args=[m["id"]]), "icon": "activity"} for m in fd.MONITORS]
+    items += [{"kind": "Monitor", "label": m.name, "sub": m.target, "url": m.get_absolute_url(), "icon": "activity"}
+              for m in Monitor.objects.only("name", "target")]
     items += [{"kind": "Prefix", "label": p.cidr, "sub": p.description or p.get_kind_display(),
                "url": p.get_absolute_url(), "icon": "globe"} for p in Prefix.objects.all()]
     items += [{"kind": "IP", "label": ip.address, "sub": ip.service or (ip.device.name if ip.device else ""),
@@ -71,8 +73,8 @@ def shell(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
         return {"org_name": fd.ORG_NAME}
-    counts = fd.status_counts()
-    open_incidents = sum(1 for i in fd.INCIDENTS if i["status"] == "open")
+    counts = monitor_stats.status_counts()
+    open_incidents = Incident.objects.filter(ended_at__isnull=True).count()
     nav = _nav_for(user)
     return {
         "nav": nav,
@@ -80,6 +82,7 @@ def shell(request):
         "me": user,
         "nav_badges": {"monitors": counts["down"], "incidents": open_incidents},
         "shell_counts": counts,
-        "shell_alerts": fd.ALERTS[:5],
+        "shell_events": Incident.objects.select_related("monitor").order_by("-started_at")[:6],
+        "checker": MonitorHeartbeat.current(),
         "search_index": _search_index(user, nav),
     }

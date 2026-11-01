@@ -5,7 +5,6 @@ Nothing here is persisted; forms are marked data-prototype and only show a toast
 These views are replaced app-by-app as the phases in PLAN.md land.
 """
 
-import random
 from collections import Counter
 from datetime import timedelta
 
@@ -19,6 +18,8 @@ from apps.accounts.roles import can
 from apps.audit.models import AuditLog
 from apps.inventory.models import Device
 from apps.ipam.models import Prefix
+from apps.monitoring import stats as monitor_stats
+from apps.monitoring.models import Incident, MaintenanceWindow, Monitor, human_duration
 
 from . import fake_data as fd
 
@@ -45,19 +46,11 @@ def _q(request):
 
 
 def _dashboard_counters():
-    counts = fd.status_counts()
-    total = len(fd.MONITORS)
-    return {"counts": counts, "total": total, "updated": timezone.now()}
+    return {"counts": monitor_stats.status_counts(), "total": Monitor.objects.count(), "updated": timezone.now()}
 
 
 def dashboard(request):
-    rng = random.Random(7)
     today = timezone.localdate()
-    uptime_days = [round(rng.uniform(99.55, 100), 2) for _ in range(14)]
-    uptime_days[4], uptime_days[12], uptime_days[13] = 98.71, 99.1, 97.84
-    response = [rng.randint(140, 260) for _ in range(24)]
-    response[18] = 610
-
     live = Device.objects.exclude(status=Device.Status.RETIRED)
     type_counts = Counter(live.values_list("device_type", flat=True))
     donut_keys = ["switch", "server", "camera", "access_point", "other"]
@@ -69,28 +62,33 @@ def dashboard(request):
                            warranty_expiry__lte=today + timedelta(days=90)
                            ).select_related("device_model").order_by("warranty_expiry")[:5]
 
-    up_count = fd.status_counts()["up"]
+    counters = _dashboard_counters()
+    monitor_ids = list(Monitor.objects.filter(enabled=True).values_list("pk", flat=True))
+    uptime_24h = monitor_stats.uptime(monitor_ids, 24)
+    web_ids = list(Monitor.objects.filter(enabled=True, type__in=["http", "keyword"]).values_list("pk", flat=True))
+    open_incidents = list(Incident.objects.filter(ended_at__isnull=True, kind=Incident.Kind.DOWN)
+                          .select_related("monitor", "acknowledged_by"))
+    for incident in open_incidents:
+        incident.duration_label = human_duration(incident.duration)
+        incident.suppressed_count = incident.suppressed.count()
+    unreachable_root = next((i for i in open_incidents if i.suppressed_count), None)
     ctx = {
-        **_dashboard_counters(),
-        "health": round(sum(m["uptime_24h"] for m in fd.MONITORS) / len(fd.MONITORS), 2),
-        "up_count": up_count,
+        **counters,
+        "health": round(sum(uptime_24h.values()) / len(uptime_24h), 2) if uptime_24h else None,
+        "up_count": counters["counts"]["up"],
         "devices_total": sum(type_counts.values()),
-        "device_types": len(type_counts),
-        "open_incidents": [i for i in fd.INCIDENTS if i["status"] == "open"],
-        "alerts": fd.ALERTS[:5],
-        "ssl": sorted((m for m in fd.MONITORS if m["cert_days"] is not None), key=lambda m: m["cert_days"]),
+        "open_incidents": open_incidents,
+        "unreachable_root": unreachable_root,
+        "events": Incident.objects.select_related("monitor").order_by("-started_at")[:5],
+        "ssl": Monitor.objects.filter(cert_expires_at__isnull=False).order_by("cert_expires_at")[:6],
+        "web_avg_ms": monitor_stats.average_ms(web_ids),
         "warranty": warranty,
         "recent_audit": AuditLog.objects.select_related("object_type")[:6] if can(request.user, "audit") else [],
         "prefixes": _busiest_prefixes(),
-        "maintenance_active": [m for m in fd.MAINTENANCE if m["state"] == "active"],
-        "chart_uptime": {
-            "labels": [(today - timedelta(days=13 - i)).strftime("%d %b") for i in range(14)],
-            "values": uptime_days, "min": 96,
-        },
-        "chart_response": {
-            "labels": [f"{(timezone.localtime().hour - 23 + i) % 24:02d}:00" for i in range(24)],
-            "values": response,
-        },
+        "maintenance_active": [w for w in MaintenanceWindow.objects.all() if w.is_active()],
+        "chart_uptime": _uptime_chart(),
+        "chart_response": monitor_stats.response_series(web_ids, hours=24, buckets=24),
+        "has_web_monitors": bool(web_ids),
         "chart_types": {
             "labels": ["Switches", "Servers & storage", "Cameras", "Access points", "Other"],
             "values": donut_vals,
@@ -100,6 +98,14 @@ def dashboard(request):
                                  donut_vals, ["maint", "up", "warn", "unreach", "paused"], donut_keys, strict=True)),
     }
     return _page(request, "monitoring/dashboard.html", "dashboard", **ctx)
+
+
+def _uptime_chart():
+    data = monitor_stats.daily_uptime(14)
+    values = [v for v in data["values"] if v is not None]
+    # Default floor 95 %; go lower when a bad day would otherwise fall off the bottom of the chart.
+    data["min"] = min(95, int(min(values)) - 1) if values else 95
+    return data
 
 
 def _busiest_prefixes(limit=6):
@@ -120,54 +126,6 @@ def dashboard_live(request):
 # --------------------------------------------------------------------------
 # Monitoring
 # --------------------------------------------------------------------------
-
-
-def monitors(request):
-    status = request.GET.get("status", "")
-    mtype = request.GET.get("type", "")
-    q = _q(request)
-    rows = [
-        m for m in fd.MONITORS
-        if (not status or m["status"] == status)
-        and (not mtype or m["type"] == mtype)
-        and (not q or q in m["name"].lower() or q in m["target"].lower())
-    ]
-    order = {"down": 0, "unreachable": 1, "pending": 2, "maintenance": 3, "up": 4, "paused": 5}
-    rows.sort(key=lambda m: (order[m["status"]], m["name"]))
-    return _page(request, "monitoring/monitors.html", "monitors", monitors=rows, counts=fd.status_counts(),
-                 status=status, mtype=mtype, q=q, types=fd.MONITOR_TYPES, total=len(fd.MONITORS))
-
-
-def monitor_detail(request, pk):
-    m = _get(fd.MONITORS_BY_ID, pk)
-    chain = []
-    parent = fd.MONITORS_BY_ID.get(m["parent_id"])
-    while parent:
-        chain.insert(0, parent)
-        parent = fd.MONITORS_BY_ID.get(parent["parent_id"])
-    children = [c for c in fd.MONITORS if c["parent_id"] == m["id"]]
-    now = timezone.localtime()
-    labels = [(now - timedelta(minutes=30 * (47 - i))).strftime("%H:%M") for i in range(48)]
-    return _page(request, "monitoring/monitor_detail.html", "monitors", m=m, chain=chain, children=children,
-                 incidents=[i for i in fd.INCIDENTS if i["monitor"]["id"] == m["id"]],
-                 types=fd.MONITOR_TYPES, chart={"labels": labels, "values": m["series"]})
-
-
-@capability_required("edit")
-def monitor_form(request):
-    return _page(request, "monitoring/monitor_form.html", "monitors", devices=fd.DEVICES, monitors=fd.MONITORS,
-                 types=fd.MONITOR_TYPES)
-
-
-def incidents(request):
-    state = request.GET.get("state", "")
-    rows = [i for i in fd.INCIDENTS if not state or i["status"] == state]
-    return _page(request, "monitoring/incidents.html", "incidents", incidents=rows, state=state,
-                 open_count=sum(1 for i in fd.INCIDENTS if i["status"] == "open"), alerts=fd.ALERTS)
-
-
-def maintenance(request):
-    return _page(request, "monitoring/maintenance.html", "maintenance", windows=fd.MAINTENANCE, devices=fd.DEVICES)
 
 
 # --------------------------------------------------------------------------

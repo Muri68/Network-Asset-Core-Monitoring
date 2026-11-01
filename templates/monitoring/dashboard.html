@@ -2,69 +2,85 @@
 {% load humanize %}
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}Network overview{% endblock %}
-{% block page_subtitle %}Live status of {{ total }} monitors across {{ devices_total }} devices · refreshed every 10 seconds{% endblock %}
+{% block page_subtitle %}Live status of {{ total }} monitor{{ total|pluralize }} across {{ devices_total }} device{{ devices_total|pluralize }} · refreshed every 10 seconds{% endblock %}
 {% block page_actions %}
-{% if can.edit %}  <a href="{% url 'ui:maintenance' %}" class="btn">{% icon "wrench" %} Schedule maintenance</a>
-  <a href="{% url 'ui:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>{% endif %}
+{% if can.edit %}
+  <a href="{% url 'monitoring:maintenance_new' %}" class="btn">{% icon "wrench" %} Schedule maintenance</a>
+  <a href="{% url 'monitoring:monitor_new' %}" class="btn btn-primary">{% icon "plus" %} Add monitor</a>
+{% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="space-y-4">
 
+  {% if not checker.alive %}
+    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-down/30 bg-down-soft px-4 py-3 text-[13px]">
+      {% icon "triangle-alert" "size-4 text-down" %}
+      <span class="font-medium text-down">The checker isn't running,</span>
+      <span class="text-ink-2">so statuses aren't being updated. Start it in a second terminal: <span class="mono">python manage.py run_monitor</span></span>
+    </div>
+  {% endif %}
+
   {% for w in maintenance_active %}
     <div class="flex flex-wrap items-center gap-3 rounded-xl border border-maint/30 bg-maint-soft px-4 py-3 text-[13px]">
       {% icon "wrench" "size-4 text-maint" %}
       <span class="font-medium text-maint">Maintenance in progress:</span>
-      <span class="text-ink-2">{{ w.name }} — {{ w.targets|join:", " }} · alerts muted until {{ w.end|time:"H:i" }}</span>
-      <a href="{% url 'ui:maintenance' %}" class="link-more ml-auto">Details {% icon "arrow-up-right" "size-3" %}</a>
+      <span class="text-ink-2">{{ w.name }}{% if w.current_end %} · alerts muted until {{ w.current_end|time:"H:i" }}{% endif %}</span>
+      <a href="{% url 'monitoring:maintenance' %}" class="link-more ml-auto">Details {% icon "arrow-up-right" "size-3" %}</a>
     </div>
   {% endfor %}
 
   {% include "partials/status_counters.html" %}
 
   <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
-    {# Health gauge #}
     <section class="card lg:col-span-4">
       <div class="card-head">
         <h2 class="card-title">Network health</h2>
         <span class="pill pill-muted">Last 24h</span>
       </div>
       <div class="card-body pt-2">
-        {% gauge health "Average uptime across all monitors" %}
+        {% if health is not None %}
+          {% gauge health "Average uptime across all monitors" %}
+        {% else %}
+          <div class="py-10 text-center text-xs text-muted">No checks in the last 24 hours yet.</div>
+        {% endif %}
         <div class="mt-5 grid grid-cols-3 gap-2 text-center">
           <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums">{{ up_count }}/{{ total }}</div><div class="text-[10px] text-muted">Monitors up</div></div>
-          <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums text-down">{{ open_incidents|length }}</div><div class="text-[10px] text-muted">Open incidents</div></div>
-          <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums">186<span class="text-[11px] text-muted"> ms</span></div><div class="text-[10px] text-muted">Avg web response</div></div>
+          <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums {% if open_incidents %}text-down{% endif %}">{{ open_incidents|length }}</div><div class="text-[10px] text-muted">Open incidents</div></div>
+          <div class="inset py-2.5"><div class="text-[15px] font-semibold tabular-nums">{% if web_avg_ms %}{{ web_avg_ms }}<span class="text-[11px] text-muted"> ms</span>{% else %}—{% endif %}</div><div class="text-[10px] text-muted">Avg web response</div></div>
         </div>
       </div>
     </section>
 
-    {# Status rings #}
     <section class="card lg:col-span-8">
       <div class="card-head">
         <h2 class="card-title">Status overview</h2>
-        <a href="{% url 'ui:monitors' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+        <a href="{% url 'monitoring:monitors' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
       </div>
       <div class="card-body">
-        <div class="grid grid-cols-2 gap-y-6 py-3 sm:grid-cols-3 md:grid-cols-5">
-          {% ring counts.up total "Up" "up" %}
-          {% ring counts.down total "Down" "down" %}
-          {% ring counts.unreachable total "Unreachable" "unreach" %}
-          {% ring counts.maintenance total "Maintenance" "maint" %}
-          {% ring counts.paused|add:counts.pending total "Paused / pending" "warn" %}
-        </div>
-        <div class="mt-4 rounded-xl border border-line bg-surface-2 p-3.5">
-          <div class="flex items-start gap-3">
-            <span class="icon-chip text-unreach">{% icon "git-branch" "size-4" %}</span>
-            <div class="text-[13px]">
-              <div class="font-medium">Dependency suppression active</div>
-              <p class="mt-0.5 text-muted">
-                <span class="text-ink-2">CCTV switch</span> is down, so <span class="text-ink-2">{{ counts.unreachable }} devices</span> behind it are
-                marked unreachable. One alert was sent instead of {{ counts.unreachable|add:1 }}.
-              </p>
-            </div>
+        {% if total %}
+          <div class="grid grid-cols-2 gap-y-6 py-3 sm:grid-cols-3 md:grid-cols-5">
+            {% ring counts.up total "Up" "up" %}
+            {% ring counts.down total "Down" "down" %}
+            {% ring counts.unreachable total "Unreachable" "unreach" %}
+            {% ring counts.maintenance total "Maintenance" "maint" %}
+            {% ring counts.paused|add:counts.pending total "Paused / pending" "warn" %}
           </div>
-        </div>
+          {% if unreachable_root %}
+            <div class="mt-4 rounded-xl border border-line bg-surface-2 p-3.5">
+              <div class="flex items-start gap-3">
+                <span class="icon-chip text-unreach">{% icon "git-branch" "size-4" %}</span>
+                <div class="text-[13px]">
+                  <div class="font-medium">Dependency suppression active</div>
+                  <p class="mt-0.5 text-muted"><span class="text-ink-2">{{ unreachable_root.monitor }}</span> is down, so <span class="text-ink-2">{{ unreachable_root.suppressed_count }} monitor{{ unreachable_root.suppressed_count|pluralize }}</span> behind it {{ unreachable_root.suppressed_count|pluralize:"is,are" }} marked unreachable instead of each raising its own alert.</p>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% else %}
+          {% if can.edit %}{% url 'monitoring:monitor_new' as new_url %}{% endif %}
+          {% include "components/empty_state.html" with icon="activity" title="Nothing monitored yet" text="Add a ping check for your firewall and switches, or an HTTP check for your websites." action_url=new_url action_label="Add monitor" %}
+        {% endif %}
       </div>
     </section>
   </div>
@@ -86,7 +102,7 @@
     <section class="card flex flex-col lg:col-span-5">
       <div class="card-head">
         <h2 class="card-title">Open incidents</h2>
-        <a href="{% url 'ui:incidents' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+        <a href="{% url 'monitoring:incidents' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
       </div>
       <div class="card-body flex-1 space-y-3">
         {% for i in open_incidents %}
@@ -95,17 +111,20 @@
               <span class="dot dot-down mt-1.5"></span>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <a href="{% url 'ui:monitor_detail' i.monitor.id %}" class="text-[13px] font-semibold hover:underline">{{ i.monitor.name }}</a>
-                  <span class="tag">{{ i.monitor.target }}</span>
+                  <a href="{{ i.monitor.get_absolute_url }}" class="text-[13px] font-semibold hover:underline">{{ i.monitor }}</a>
+                  <span class="tag">{{ i.monitor.target|truncatechars:40 }}</span>
                 </div>
                 <p class="mt-1 text-xs text-ink-2">{{ i.cause }}</p>
                 <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
-                  <span class="flex items-center gap-1">{% icon "clock" "size-3" %} Down for {{ i.duration }}</span>
-                  {% if i.suppressed %}<span class="flex items-center gap-1 text-unreach">{% icon "git-branch" "size-3" %} {{ i.suppressed }} children unreachable</span>{% endif %}
-                  {% if i.ack %}<span class="flex items-center gap-1">{% icon "check" "size-3" %} Ack by {{ i.ack }}</span>{% endif %}
+                  <span class="flex items-center gap-1">{% icon "clock" "size-3" %} Down for {{ i.duration_label }}</span>
+                  {% if i.suppressed_count %}<span class="flex items-center gap-1 text-unreach">{% icon "git-branch" "size-3" %} {{ i.suppressed_count }} behind it unreachable</span>{% endif %}
+                  {% if i.acknowledged_by %}<span class="flex items-center gap-1">{% icon "check" "size-3" %} Ack by {{ i.acknowledged_by.name }}</span>{% endif %}
                 </div>
               </div>
-              {% if not i.ack and can.edit %}<button class="btn btn-sm" x-data @click="$store.toast.show('Incident #{{ i.id }} acknowledged — prototype only')">Acknowledge</button>{% endif %}
+              {% if not i.acknowledged_by and can.edit %}
+                <form method="post" action="{% url 'monitoring:incident_ack' i.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                  <button class="btn btn-sm">Acknowledge</button></form>
+              {% endif %}
             </div>
           </div>
         {% empty %}
@@ -115,21 +134,25 @@
     </section>
   </div>
 
-  <div class="grid gap-4 lg:grid-cols-3">
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
     <section class="card">
       <div class="card-head">
         <h2 class="card-title">SSL certificates</h2>
-        <a href="{% url 'ui:monitors' %}?type=ssl" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
+        <a href="{% url 'monitoring:monitors' %}?type=ssl" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
       </div>
       <ul class="card-body space-y-1">
         {% for m in ssl %}
-          <li class="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-2">
-            {% with tone=m.cert_days|days_tone %}
-              <span class="text-{{ tone }}">{% if tone == "up" %}{% icon "badge-check" "size-4" %}{% else %}{% icon "triangle-alert" "size-4" %}{% endif %}</span>
-              <span class="min-w-0 flex-1 truncate text-[13px]">{{ m.target|cut:"https://" }}</span>
-              <span class="text-xs font-semibold tabular-nums text-{{ tone }}">{{ m.cert_days }} days</span>
-            {% endwith %}
+          <li>
+            <a href="{{ m.get_absolute_url }}" class="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-2">
+              {% with tone=m.cert_days|days_tone %}
+                <span class="text-{{ tone }}">{% if tone == "up" %}{% icon "badge-check" "size-4" %}{% else %}{% icon "triangle-alert" "size-4" %}{% endif %}</span>
+                <span class="min-w-0 flex-1 truncate text-[13px]">{{ m.target|cut:"https://"|cut:"http://" }}</span>
+                <span class="text-xs font-semibold tabular-nums text-{{ tone }}">{{ m.cert_days }} days</span>
+              {% endwith %}
+            </a>
           </li>
+        {% empty %}
+          <li class="py-6 text-center text-xs text-muted">No certificates checked yet. SSL and HTTPS monitors record expiry dates here.</li>
         {% endfor %}
       </ul>
     </section>
@@ -161,7 +184,7 @@
         <a href="{% url 'ipam:prefixes' %}" class="link-more">View all {% icon "arrow-up-right" "size-3" %}</a>
       </div>
       <ul class="card-body space-y-3.5">
-        {% for p in prefixes|slice:":6" %}
+        {% for p in prefixes %}
           <li>
             <a href="{{ p.get_absolute_url }}" class="group block">
               <div class="mb-1.5 flex items-center justify-between gap-2 text-xs">
@@ -185,16 +208,19 @@
         <h2 class="card-title">Web response time — last 24h</h2>
         <span class="pill pill-muted">All HTTP monitors · avg</span>
       </div>
-      <div class="card-body"><div class="h-56"><canvas data-chart="line" data-source="chart-response"></canvas></div></div>
+      <div class="card-body">
+        {% if has_web_monitors %}<div class="h-56"><canvas data-chart="line" data-source="chart-response"></canvas></div>
+        {% else %}<div class="py-16 text-center text-xs text-muted">Add an HTTP(S) monitor to see website response times.</div>{% endif %}
+      </div>
       {{ chart_response|json_script:"chart-response" }}
     </section>
 
     <section class="card lg:col-span-3">
       <div class="card-head">
-        <h2 class="card-title">Telegram alerts</h2>
-        <a href="{% url 'ui:incidents' %}" class="link-more">All {% icon "arrow-up-right" "size-3" %}</a>
+        <h2 class="card-title">Recent events</h2>
+        <a href="{% url 'monitoring:incidents' %}" class="link-more">All {% icon "arrow-up-right" "size-3" %}</a>
       </div>
-      <div class="-mx-0 pb-2">{% include "partials/alert_list.html" %}</div>
+      <div class="pb-2">{% include "partials/alert_list.html" with events=events %}</div>
     </section>
 
     <section class="card lg:col-span-3">

@@ -1,19 +1,20 @@
 {% load humanize %}
+{# Recent monitoring events (incidents opened / closed). Telegram delivery details arrive in Phase 6. #}
 <ul class="divide-y divide-line">
-  {% for a in alerts|default:shell_alerts %}
-    <li class="flex gap-3 px-5 py-3">
-      {% if a.event == "down" %}<span class="icon-chip size-7 border-down/30 bg-down-soft text-down">{% icon "arrow-down" "size-3.5" %}</span>
-      {% elif a.event == "up" %}<span class="icon-chip size-7 border-up/30 bg-up-soft text-up">{% icon "arrow-up" "size-3.5" %}</span>
-      {% elif a.event == "ssl" %}<span class="icon-chip size-7 border-warn/30 bg-warn-soft text-warn">{% icon "shield-alert" "size-3.5" %}</span>
-      {% else %}<span class="icon-chip size-7 border-down/30 bg-down-soft text-down">{% icon "lock" "size-3.5" %}</span>{% endif %}
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2">
-          <span class="truncate text-[13px] font-medium">{{ a.monitor }}</span>
-          {% if a.status == "delayed" %}<span class="pill pill-warn">Delayed</span>{% endif %}
+  {% for i in events|default:shell_events %}
+    <li>
+      <a href="{{ i.monitor.get_absolute_url }}" class="flex gap-3 px-5 py-3 hover:bg-surface-2">
+        {% if i.ended_at %}<span class="icon-chip size-7 border-up/30 bg-up-soft text-up">{% icon "arrow-up" "size-3.5" %}</span>
+        {% elif i.kind == "unreachable" %}<span class="icon-chip size-7 border-unreach/30 bg-unreach-soft text-unreach">{% icon "git-branch" "size-3.5" %}</span>
+        {% else %}<span class="icon-chip size-7 border-down/30 bg-down-soft text-down">{% icon "arrow-down" "size-3.5" %}</span>{% endif %}
+        <div class="min-w-0 flex-1">
+          <div class="truncate text-[13px] font-medium">{{ i.monitor }}</div>
+          <p class="line-clamp-2 text-xs text-muted">{% if i.ended_at %}Back up after {{ i.started_at|timesince:i.ended_at }}{% else %}{{ i.cause }}{% endif %}</p>
+          <p class="mt-0.5 text-[11px] text-faint">{% if i.ended_at %}{{ i.ended_at|naturaltime }}{% else %}{{ i.started_at|naturaltime }}{% endif %}</p>
         </div>
-        <p class="line-clamp-2 text-xs text-muted">{{ a.text }}</p>
-        <p class="mt-0.5 text-[11px] text-faint">{{ a.time|naturaltime }}</p>
-      </div>
+      </a>
     </li>
+  {% empty %}
+    <li class="px-5 py-6 text-center text-xs text-muted">No incidents yet.</li>
   {% endfor %}
 </ul>

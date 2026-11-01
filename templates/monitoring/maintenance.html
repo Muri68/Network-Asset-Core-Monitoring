@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% load humanize %}
 {% block title %}Maintenance{% endblock %}
 {% block heading %}Maintenance windows{% endblock %}
 {% block page_title %}Maintenance windows{% endblock %}
-{% block page_subtitle %}Checks keep running during a window, but no alerts are sent for the selected devices.{% endblock %}
-{% block page_actions %}{% if can.edit %}<button class="btn btn-primary" x-data @click="$dispatch('open-maint')">{% icon "plus" %} Schedule window</button>{% endif %}{% endblock %}
+{% block page_subtitle %}During a window, checks keep running (history stays accurate) but the devices are shown as in maintenance and no incidents or alerts are raised.{% endblock %}
+{% block page_actions %}{% if can.edit %}<a href="{% url 'monitoring:maintenance_new' %}" class="btn btn-primary">{% icon "plus" %} Schedule window</a>{% endif %}{% endblock %}
 
 {% block content %}
+{% if windows %}
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
   {% for w in windows %}
     <article class="card flex flex-col p-5 {% if w.state == 'active' %}border-maint/40{% endif %}">
@@ -14,47 +14,37 @@
         {% if w.state == "active" %}<span class="pill pill-maint"><span class="dot dot-maint"></span>In progress</span>
         {% elif w.state == "scheduled" %}<span class="pill pill-info">Scheduled</span>
         {% else %}<span class="pill pill-muted">Completed</span>{% endif %}
-        <span class="text-[11px] text-muted">{{ w.recurrence }}</span>
+        <span class="text-[11px] text-muted">{{ w.get_recurrence_display }}</span>
       </div>
       <h3 class="mt-3 text-[15px] font-semibold">{{ w.name }}</h3>
-      <p class="mt-1 text-xs text-muted">{{ w.reason }}</p>
+      {% if w.reason %}<p class="mt-1 text-xs text-muted">{{ w.reason }}</p>{% endif %}
       <div class="inset mt-4 space-y-1.5 p-3 text-xs">
-        <div class="flex justify-between"><span class="text-muted">Start</span><span>{{ w.start|date:"D d M, H:i" }}</span></div>
-        <div class="flex justify-between"><span class="text-muted">End</span><span>{{ w.end|date:"D d M, H:i" }}</span></div>
-        <div class="flex justify-between"><span class="text-muted">Include children</span><span>{{ w.children|yesno:"Yes,No" }}</span></div>
+        <div class="flex justify-between gap-2"><span class="text-muted">Start</span><span>{{ w.starts_at|date:"D d M, H:i" }}</span></div>
+        <div class="flex justify-between gap-2"><span class="text-muted">End</span><span>{{ w.ends_at|date:"D d M, H:i" }}</span></div>
+        {% if w.state == "active" and w.current_end %}<div class="flex justify-between gap-2"><span class="text-muted">Muted until</span><span class="text-maint">{{ w.current_end|date:"H:i" }}</span></div>{% endif %}
+        <div class="flex justify-between gap-2"><span class="text-muted">Devices behind them</span><span>{{ w.include_children|yesno:"Muted too,Not muted" }}</span></div>
       </div>
-      <div class="mt-4 flex flex-wrap gap-1.5">{% for t in w.targets %}<span class="tag">{{ t }}</span>{% endfor %}</div>
-      <div class="mt-auto flex items-center justify-between gap-2 pt-5 text-xs text-muted" x-data>
-        <span class="flex items-center gap-1.5">{% include "components/avatar.html" with name=w.by size="size-5" %}{{ w.by }}</span>
-        {% if not can.edit %}{% elif w.state == "active" %}<button class="btn btn-sm" @click="$store.toast.show('Window ended early — prototype only')">End now</button>
-        {% elif w.state == "scheduled" %}<button class="btn btn-sm btn-ghost" @click="$store.toast.show('Window cancelled — prototype only','paused')">Cancel</button>{% endif %}
+      <div class="mt-4 flex flex-wrap gap-1.5">
+        {% for d in w.devices.all %}<a class="tag hover:text-ink" href="{{ d.get_absolute_url }}">{{ d.name }}</a>{% endfor %}
+        {% for m in w.monitors.all %}<a class="tag hover:text-ink" href="{{ m.get_absolute_url }}">{{ m.name }}</a>{% endfor %}
+      </div>
+      <div class="mt-auto flex items-center justify-between gap-2 pt-5 text-xs text-muted">
+        <span class="flex items-center gap-1.5">{% if w.created_by %}{% include "components/avatar.html" with name=w.created_by.name size="size-5" %}{{ w.created_by.name }}{% endif %}</span>
+        {% if can.edit %}
+          <span class="flex gap-1">
+            {% if w.state == "active" %}<form method="post" action="{% url 'monitoring:maintenance_end' w.pk %}">{% csrf_token %}<button class="btn btn-sm">End now</button></form>{% endif %}
+            <a href="{% url 'monitoring:maintenance_edit' w.pk %}" class="btn btn-ghost btn-icon btn-sm" aria-label="Edit">{% icon "pencil" "size-3.5" %}</a>
+            <form method="post" action="{% url 'monitoring:maintenance_delete' w.pk %}" onsubmit="return confirm('Delete “{{ w.name|escapejs }}”?')">{% csrf_token %}<button class="btn btn-ghost btn-icon btn-sm text-down" aria-label="Delete">{% icon "trash-2" "size-3.5" %}</button></form>
+          </span>
+        {% endif %}
       </div>
     </article>
   {% endfor %}
 </div>
-
-{% if can.edit %}
-{# Schedule modal #}
-<div x-data="{ open: false }" @open-maint.window="open = true" x-show="open" x-cloak
-     class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4 backdrop-blur-sm" x-transition.opacity>
-  <form data-prototype="Maintenance window scheduled" @prototype-submitted="open = false" @click.outside="open = false" class="card w-full max-w-lg p-0">
-    <div class="card-head border-b border-line pb-4"><h2 class="card-title">Schedule maintenance</h2>
-      <button type="button" class="btn btn-ghost btn-icon btn-sm" @click="open = false">{% icon "x" %}</button></div>
-    <div class="grid gap-4 p-5 sm:grid-cols-2">
-      <div class="sm:col-span-2"><label class="field-label">Name</label><input class="input" placeholder="e.g. Firewall firmware upgrade" required></div>
-      <div><label class="field-label">Start</label><input type="datetime-local" class="input"></div>
-      <div><label class="field-label">End</label><input type="datetime-local" class="input"></div>
-      <div class="sm:col-span-2"><label class="field-label">Devices</label>
-        <select multiple class="input h-28 py-1">{% for d in devices %}<option>{{ d.name }}</option>{% endfor %}</select></div>
-      <div><label class="field-label">Repeat</label><select class="input"><option>One-time</option><option>Daily</option><option>Weekly</option></select></div>
-      <label class="flex items-end gap-2 pb-2 text-[13px]"><input type="checkbox" checked class="size-4 accent-[var(--accent)]"> Also mute devices behind them</label>
-      <div class="sm:col-span-2"><label class="field-label">Reason</label><textarea class="input" rows="2"></textarea></div>
-    </div>
-    <div class="flex justify-end gap-2 border-t border-line px-5 py-4">
-      <button type="button" class="btn" @click="open = false">Cancel</button>
-      <button class="btn btn-primary">Schedule</button>
-    </div>
-  </form>
-</div>
+{% else %}
+  <section class="card">
+    {% if can.edit %}{% url 'monitoring:maintenance_new' as new_url %}{% endif %}
+    {% include "components/empty_state.html" with icon="wrench" title="No maintenance windows" text="Planning a firmware upgrade or a reboot? Schedule a window so nobody gets alerted for it." action_url=new_url action_label="Schedule window" %}
+  </section>
 {% endif %}
 {% endblock %}

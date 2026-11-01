@@ -28,6 +28,8 @@
         <div class="relative" x-data="{ open: false }" @click.outside="open = false">
           <button class="btn btn-icon" @click="open = !open" aria-label="More actions">{% icon "ellipsis-vertical" %}</button>
           <div x-show="open" x-cloak x-transition class="card absolute right-0 z-20 mt-1 w-56 p-1.5">
+            <a href="{% url 'monitoring:monitor_new' %}?device={{ d.pk }}" class="nav-link">{% icon "activity" %} Monitor this device</a>
+            <a href="{% url 'monitoring:maintenance_new' %}?device={{ d.pk }}" class="nav-link">{% icon "wrench" %} Schedule maintenance</a>
             {% if d.status != "retired" %}
               <form method="post" action="{% url 'inventory:device_retire' d.pk %}" onsubmit="return confirm('Retire {{ d.name|escapejs }}? It leaves its rack, but the record and its history are kept.')">{% csrf_token %}
                 <button class="nav-link w-full">{% icon "archive" %} Retire device</button></form>
@@ -147,8 +149,25 @@
       {% include "components/empty_state.html" with icon="globe" title="No IP addresses" text="Set a management IP when editing the device, or assign other addresses (e.g. a public IP with NAT) here." %}
     {% endif %}
   </section>
-  <section x-show="tab==='monitors'" x-cloak class="card">
-    {% include "components/empty_state.html" with icon="activity" title="Monitoring comes later" text="Ping, port and website checks for this device arrive with the monitoring step." %}
+  <section x-show="tab==='monitors'" x-cloak class="card overflow-hidden">
+    <div class="flex flex-wrap items-center gap-2 border-b border-line p-3">
+      <span class="text-[13px] font-semibold">{{ monitors|length }} monitor{{ monitors|length|pluralize }}</span>
+      {% if can.edit %}<a href="{% url 'monitoring:monitor_new' %}?device={{ d.pk }}" class="btn btn-primary btn-sm ml-auto">{% icon "plus" "size-3.5" %} Monitor this device</a>{% endif %}
+    </div>
+    {% if monitors %}
+      <ul class="divide-y divide-line">
+        {% for m in monitors %}
+          <li class="flex flex-wrap items-center gap-4 px-5 py-4">
+            <a href="{{ m.get_absolute_url }}" class="min-w-48 flex-1"><div class="font-medium hover:underline">{{ m.name }}</div><div class="mono text-xs text-muted">{{ m.get_type_display }} · {{ m.target }}{% if m.port and m.type == "tcp" %}:{{ m.port }}{% endif %}</div></a>
+            {% if m.beats %}{% include "components/heartbeats.html" with beats=m.beats cls="hidden md:flex" %}{% endif %}
+            <span class="w-20 text-right font-semibold tabular-nums {% if m.uptime_24h is not None %}text-{{ m.uptime_24h|uptime_tone }}{% else %}text-faint{% endif %}">{% if m.uptime_24h is not None %}{{ m.uptime_24h }}%{% else %}—{% endif %}</span>
+            {% include "components/status_pill.html" with status=m.status %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {% include "components/empty_state.html" with icon="activity" title="Not monitored" text="Add a ping check for its management IP to be alerted when it goes down." %}
+    {% endif %}
   </section>
   {% if can.vault %}
   <section x-show="tab==='creds'" x-cloak class="card">

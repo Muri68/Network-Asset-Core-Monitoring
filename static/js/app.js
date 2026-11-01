@@ -119,7 +119,8 @@
             fill: true,
             tension: 0.35,
             borderWidth: 2,
-            pointRadius: 0,
+            // Show dots when there are only a few readings, otherwise a single point is invisible.
+            pointRadius: data.values.filter((v) => v !== null).length < 8 ? 3 : 0,
             pointHoverRadius: 4,
             spanGaps: false,
           }],

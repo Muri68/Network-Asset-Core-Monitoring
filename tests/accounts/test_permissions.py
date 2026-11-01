@@ -11,11 +11,14 @@ from tests.factories import make_user
 PAGES = [
     ("ui:dashboard", [], "view"),
     ("ui:dashboard_live", [], "view"),
-    ("ui:monitors", [], "view"),
-    ("ui:monitor_detail", [12], "view"),
-    ("ui:monitor_new", [], "edit"),
-    ("ui:incidents", [], "view"),
-    ("ui:maintenance", [], "view"),
+    ("monitoring:monitors", [], "view"),
+    ("monitoring:monitor_detail", ["monitor"], "view"),
+    ("monitoring:monitor_new", [], "edit"),
+    ("monitoring:monitor_edit", ["monitor"], "edit"),
+    ("monitoring:incidents", [], "view"),
+    ("monitoring:maintenance", [], "view"),
+    ("monitoring:maintenance_new", [], "edit"),
+    ("monitoring:maintenance_edit", ["window"], "edit"),
     ("inventory:devices", [], "view"),
     ("inventory:device_detail", ["device"], "view"),
     ("inventory:device_new", [], "edit"),
@@ -62,13 +65,15 @@ PAGES = [
     ("accounts:profile", [], "view"),
 ]
 
-POST_ONLY = {"ipam:prefix_delete", "ipam:ip_delete", "ipam:isp_delete", "ipam:circuit_delete",
-             "dcim:vlan_delete", "dcim:connection_delete", "dcim:port_delete", "dcim:ports_bulk_add",
-             "dcim:ports_apply_template", "inventory:device_retire", "inventory:device_delete", "inventory:rack_delete",
-             "inventory:location_delete", "ui:credential_reveal", "ui:import_preview", "accounts:user_create",
-             "accounts:user_action",
-             "accounts:profile_password", "accounts:profile_reveal_code", "accounts:profile_backup_codes",
-             "accounts:logout"}
+POST_ONLY = {
+    "accounts:logout", "accounts:profile_backup_codes", "accounts:profile_password",
+    "accounts:profile_reveal_code", "accounts:user_action", "accounts:user_create", "dcim:connection_delete",
+    "dcim:port_delete", "dcim:ports_apply_template", "dcim:ports_bulk_add", "dcim:vlan_delete",
+    "inventory:device_delete", "inventory:device_retire", "inventory:location_delete", "inventory:rack_delete",
+    "ipam:circuit_delete", "ipam:ip_delete", "ipam:isp_delete", "ipam:prefix_delete", "monitoring:incident_ack",
+    "monitoring:maintenance_delete", "monitoring:maintenance_end", "monitoring:monitor_action",
+    "monitoring:monitor_delete", "ui:credential_reveal", "ui:import_preview",
+}
 PUBLIC = {"accounts:login", "accounts:login_password", "accounts:login_2fa_setup", "accounts:login_2fa"}
 SPECIAL = {"accounts:backup_codes", "accounts:reveal_code_setup", "accounts:user_edit"}
 
@@ -77,7 +82,7 @@ def test_every_url_is_covered():
     from django.urls import get_resolver
 
     names = set()
-    for ns in ("ui", "accounts", "audit", "inventory", "dcim", "ipam"):
+    for ns in ("ui", "accounts", "audit", "inventory", "dcim", "ipam", "monitoring"):
         resolver = get_resolver().namespace_dict[ns][1]
         names |= {f"{ns}:{n}" for n in resolver.reverse_dict if isinstance(n, str)}
     covered = {name for name, _, _ in PAGES} | POST_ONLY | PUBLIC | SPECIAL
@@ -102,9 +107,19 @@ def objects(db):
     ip = IPAddress.objects.create(address="129.205.100.131", device=device)
     isp = ISP.objects.create(name="FibreLink")
     circuit = Circuit.objects.create(isp=isp, circuit_id="FL-1")
+    import datetime
+
+    from django.utils import timezone
+
+    from apps.monitoring.models import MaintenanceWindow, Monitor
+
+    monitor = Monitor.objects.create(name="Core firewall", type="ping", target="10.10.0.1", device=device)
+    window = MaintenanceWindow.objects.create(name="Patch", starts_at=timezone.now(),
+                                              ends_at=timezone.now() + datetime.timedelta(hours=1))
+    window.devices.add(device)
     return {"device": device.pk, "rack": device.rack.pk, "location": device.location.pk, "port": a_port.pk,
             "connection": connection.pk, "vlan": vlan.pk, "model": device.device_model.pk, "prefix": prefix.pk,
-            "ip": ip.pk, "isp": isp.pk, "circuit": circuit.pk}
+            "ip": ip.pk, "isp": isp.pk, "circuit": circuit.pk, "monitor": monitor.pk, "window": window.pk}
 
 
 def resolve(args, objects):
@@ -150,7 +165,7 @@ def test_import_is_admin_only(as_user, role, allowed):
 @pytest.mark.django_db
 def test_viewer_sees_no_admin_or_vault_links(as_user, viewer):
     html = as_user(viewer).get(reverse("ui:dashboard")).content.decode()
-    for name in ("ui:vault", "audit:log", "ui:settings", "accounts:users", "ui:data", "ui:monitor_new"):
+    for name in ("ui:vault", "audit:log", "ui:settings", "accounts:users", "ui:data", "monitoring:monitor_new"):
         assert f'href="{reverse(name)}"' not in html, name
     assert '"kind": "Credential"' not in html  # search palette doesn't list credentials
 
@@ -159,7 +174,7 @@ def test_viewer_sees_no_admin_or_vault_links(as_user, viewer):
 def test_engineer_nav(as_user, engineer):
     html = as_user(engineer).get(reverse("ui:dashboard")).content.decode()
     assert f'href="{reverse("ui:vault")}"' in html
-    assert f'href="{reverse("ui:monitor_new")}"' in html
+    assert f'href="{reverse("monitoring:monitor_new")}"' in html
     for name in ("audit:log", "ui:settings", "accounts:users"):
         assert f'href="{reverse(name)}"' not in html, name
 

@@ -10,8 +10,8 @@ rack/port documentation and an audited password vault. See [PLAN.md](PLAN.md) fo
 (Admin / Engineer / Viewer), user management, profile, vault reveal-code setup, and an
 append-only **audit log** of every sign-in, security event and change.
 **Also live:** locations, racks, devices, device models, ports, VLANs, connections, cable tracing,
-ISPs, circuits, prefixes and IP addresses (IPAM).
-**Still sample data:** monitoring, vault contents, settings.
+ISPs, circuits, prefixes and IP addresses (IPAM), monitors, incidents and maintenance windows.
+**Still sample data:** vault contents, Telegram alerts, settings.
 
 Want sample devices to look around? `python manage.py load_demo_inventory` loads 30 demo devices
 and 3 racks with their ports, VLANs and cables — only into an empty inventory, and they're real records
@@ -28,6 +28,16 @@ python manage.py migrate
 python manage.py bootstrap_admin --username yourname --full-name "Your Name" --email you@example.com
 python manage.py tailwind runserver         # builds CSS on change + starts Django
 ```
+
+In a **second terminal**, start the checker that pings devices and checks websites:
+
+```bash
+source .venv/bin/activate
+python manage.py run_monitor                # keep it running; Ctrl+C to stop
+```
+
+The sidebar shows "Checker running" while it's up. Set your time zone in `.env`
+(`DJANGO_TIME_ZONE=Africa/Lagos`) so times and maintenance windows match your clock.
 
 Open http://127.0.0.1:8000 and sign in. On first sign-in you scan a QR code with an
 authenticator app (Google/Microsoft Authenticator, Authy…), save your backup codes, and
@@ -55,6 +65,7 @@ apps/core/         Shared base model (created/updated by) and form styling
 apps/inventory/    Locations, racks, devices, device models, rack elevations
 apps/dcim/         Ports, VLANs, connections, port patterns, cable tracing
 apps/ipam/         ISPs, circuits, prefixes (subnet maths), IP addresses, NAT
+apps/monitoring/   Checkers, state machine, run_monitor process, incidents, maintenance
 apps/ui/           Sample-data views (replaced area by area), template tags
 templates/         All pages, by area (auth, accounts, monitoring, inventory, dcim, ipam, vault, system)
 tests/             pytest suite

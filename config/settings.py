@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.inventory",
     "apps.dcim",
     "apps.ipam",
+    "apps.monitoring",
     "apps.ui",
 ]
 
@@ -88,6 +89,13 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / os.environ.get("SQLITE_PATH", "db.sqlite3"),
+        # The web server and the monitor process write at the same time: WAL lets readers and one
+        # writer work together, and writers wait (up to 20 s) instead of failing with "database is locked".
+        "OPTIONS": {
+            "timeout": 20,
+            "transaction_mode": "IMMEDIATE",
+            "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
+        },
     }
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -145,7 +153,8 @@ AXES_ENABLE_ADMIN = False
 # --------------------------------------------------------------------------
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+# Times are stored in UTC and shown (and typed) in this zone (PLAN.md A14).
+TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "UTC")
 USE_I18N = False
 USE_TZ = True
 
